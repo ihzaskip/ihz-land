@@ -51,7 +51,7 @@ const DISCLAIMER: &str = "IELTS\u{ae} is a trademark of the IELTS partners. Not 
 const MIC_SETTINGS: &str =
     if cfg!(target_os = "macos") { "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone" } else { "ms-settings:privacy-microphone" };
 const SIGN_IN_TITLE: &str = "Latihan IELTS Speaking bareng Pulo";
-const SIGN_IN_BODY: &str = "Pulo jadi examiner IELTS kamu: nanya Part 1 sampai 3, dengerin jawabanmu, kasih band score, terus nge-roast. Masuk ke Oyenza dulu buat mulai.";
+const SIGN_IN_BODY: &str = "Pulo jadi examiner IELTS kamu: nanya Part 1 sampai 3, dengerin jawabanmu, kasih band score, terus nge-roast. Masuk ke ihz.app dulu buat mulai.";
 
 pub fn height(st: &AppState) -> f32 {
     if !signed_in(st) {
@@ -454,7 +454,7 @@ fn draw_result(ui: &mut Ui, st: &mut AppState, left: Rect, right: Rect) {
     ui.c.unclip();
     // Three tips.
     let y = right.y + 164.0;
-    ui.c.text("TIPS DARI OYEN", Rect::new(right.x, y, right.w, 14.0), &TextStyle::caption().weight(Weight::Bold).color(palette::TEXT_FAINT));
+    ui.c.text("TIPS DARI PULO", Rect::new(right.x, y, right.w, 14.0), &TextStyle::caption().weight(Weight::Bold).color(palette::TEXT_FAINT));
     for (i, tip) in v.tips.iter().take(3).enumerate() {
         let r = Rect::new(right.x, y + 16.0 + i as f32 * 15.0, right.w, 15.0);
         ui.c.text(&format!("\u{2022}  {tip}"), r, &TextStyle::caption().color(palette::TEXT_DIM));

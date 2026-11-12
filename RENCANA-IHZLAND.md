@@ -33,8 +33,9 @@ Keputusan user (12 Nov 2026) ada di bawah. Centang tiap langkah setelah selesai.
        Kunci per perangkat disimpan di Upstash Redis dan bisa dicabut. Di aplikasi:
        `poni_core::oyenza` memakai `https://ihz.app/connect/*`, kunci `ihzd_`, disimpan
        tersegel di `ihz-link.bin`; "Sign in to ihz.app…" di menu dan Settings.
-7. [ ] **IELTS tertanam** memakai backend temanielts: 5 rute `/island/ielts/*` di
-       `temanielts`, diautentikasi dengan kunci perangkat dari langkah 6.
+7. [x] **IELTS tertanam** memakai backend temanielts: 5 rute `/island/ielts/*` di
+       `temanielts`, diautentikasi dengan kunci perangkat dari langkah 6
+       (`poni_core::ielts::BASE` = `https://temanielts.com`).
 8. [x] **Quran**: tombol "Read Quran" membuka pemutar di `https://work.ihz.app`.
 9. [ ] **Phone drop**: `server/drop-server.mjs` dijalankan di VPS Hermes
        (docker compose, seperti Duit) di `https://drop.ihz.app`, lalu default

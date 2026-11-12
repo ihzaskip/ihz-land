@@ -5,8 +5,9 @@
 //! Jakarta gaul (Sopan, Gaul or Ngegas). Levels 1 to 5 open one after the
 //! other, kept per Oyenza account.
 //!
-//! The thinking happens on the server (catat-server `routes/ielts.ts`, under
-//! `/island/ielts` on api.oyenza.app, with the PC's Oyenza key): it hears the
+//! The thinking happens on the server (temanielts.com's `/island/ielts`
+//! routes, `temanielts/docs/island-ielts.md`, asked with the PC's ihz.app
+//! device key as `Bearer`; temanielts checks it with ihz.app): it hears the
 //! answer, writes Oyen's next turn and voices it as mp3 clips. Everything
 //! here is pure and runs anywhere:
 //! - the five routes: URLs, request bodies, the answers ([`Me`], [`Turn`],
@@ -28,8 +29,8 @@ use std::fs::File;
 use std::io::{self, BufWriter, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 
-/// Where the routes live on the API (`BASE` + `PATH` + `/me`, …).
-pub const BASE: &str = "https://api.oyenza.app";
+/// Where the routes live (`BASE` + `PATH` + `/me`, …): Teman IELTS.
+pub const BASE: &str = "https://temanielts.com";
 pub const PATH: &str = "/island/ielts";
 /// The answer's audio: 16 kHz mono 16-bit PCM in a WAV file.
 pub const RATE: u32 = 16_000;
@@ -550,7 +551,7 @@ pub enum Problem {
     AiFailed,
     /// No answer at all: no internet, or the server didn't answer in time.
     Offline,
-    /// 401, or no Oyenza key on this PC.
+    /// 401, or no ihz.app key on this PC.
     SignedOut,
     /// 409 `busy`: the server is still hearing an answer to this session.
     StillThinking,
@@ -601,8 +602,8 @@ impl Problem {
             Problem::TooBig => "Jawabannya kepanjangan",
             Problem::Busy(_) => "Pulo lagi rame",
             Problem::AiFailed => "Pulo gagal mikir",
-            Problem::Offline => "Nggak nyambung ke Oyenza",
-            Problem::SignedOut => "Kamu udah keluar dari Oyenza",
+            Problem::Offline => "Nggak nyambung ke Teman IELTS",
+            Problem::SignedOut => "Kamu udah keluar dari ihz.app",
             Problem::StillThinking => "Pulo masih mikirin jawabanmu",
             Problem::BadLevel => "Level itu nggak ada",
             Problem::BadAudio => "Rekamanmu nggak kebaca",
@@ -627,7 +628,7 @@ impl Problem {
             Problem::Busy(_) => "Lagi banyak yang latihan. Coba lagi sebentar lagi.".into(),
             Problem::AiFailed => "Jawabanmu masih aman. Kirim lagi aja.".into(),
             Problem::Offline => "Cek internetnya, terus coba lagi.".into(),
-            Problem::SignedOut => "Masuk lagi ke Oyenza buat lanjut latihan.".into(),
+            Problem::SignedOut => "Masuk lagi ke ihz.app buat lanjut latihan.".into(),
             Problem::StillThinking => "Jawaban tadi masih diproses. Tunggu sebentar, terus coba lagi.".into(),
             Problem::BadLevel => "Pilih level lain di daftar, terus mulai lagi.".into(),
             Problem::BadAudio => "Coba rekam ulang jawabanmu ya.".into(),
@@ -1863,11 +1864,11 @@ mod tests {
 
     #[test]
     fn urls_and_bodies() {
-        assert_eq!(me_url(BASE, "+07:00"), "https://api.oyenza.app/island/ielts/me?tz=%2B07%3A00");
+        assert_eq!(me_url(BASE, "+07:00"), "https://temanielts.com/island/ielts/me?tz=%2B07%3A00");
         assert_eq!(session_url("http://127.0.0.1:9"), "http://127.0.0.1:9/island/ielts/session");
-        assert_eq!(answer_url(BASE, "a b"), "https://api.oyenza.app/island/ielts/session/a%20b/answer");
-        assert_eq!(skip_url(BASE, "x"), "https://api.oyenza.app/island/ielts/session/x/skip");
-        assert_eq!(end_url(BASE, "x"), "https://api.oyenza.app/island/ielts/session/x");
+        assert_eq!(answer_url(BASE, "a b"), "https://temanielts.com/island/ielts/session/a%20b/answer");
+        assert_eq!(skip_url(BASE, "x"), "https://temanielts.com/island/ielts/session/x/skip");
+        assert_eq!(end_url(BASE, "x"), "https://temanielts.com/island/ielts/session/x");
         let v: serde_json::Value = serde_json::from_str(&session_body(9, Spice::Ngegas, "+07:00")).unwrap();
         assert_eq!(v, serde_json::json!({ "level": 5, "spice": 2, "tz": "+07:00" }));
         let wav = tone_wav(0.1, 440.0, RATE);
