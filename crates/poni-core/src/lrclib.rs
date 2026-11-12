@@ -220,7 +220,10 @@ fn clean_title(s: &str) -> String {
     // ASCII-only matching keeps byte offsets valid for the original string
     // (`to_lowercase` changes the length of e.g. "İ" and the Kelvin sign).
     for marker in ["(feat.", "(ft.", "[feat.", "[ft.", "feat.", "ft.", "(with "] {
-        if let Some(i) = find_marker(&title, marker) {
+        // A separator after it means the "feat." belongs to the artist side
+        // of an unsplit "Artist feat. X - Song": cutting there would lose the
+        // song, so `title_guesses` gets the title whole.
+        if let Some(i) = find_marker(&title, marker).filter(|&i| split_title(&title[i..]).is_none()) {
             title = title[..i].trim().to_string();
         }
     }
@@ -586,6 +589,10 @@ mod tests {
         // A record label's upload with the song first: the second reading finds it.
         let n = normalize_query(&q("[Sub Thai] Paper Boats - The Lanterns", "Harbor Music Thailand", "", 236));
         assert_eq!(read(&title_guesses(&n)[1]), pair("The Lanterns", "Paper Boats"));
+        // "feat." on the artist side of an unsplit title keeps the song.
+        let n = normalize_query(&q("eńau feat. Ari Lesmana - Sesi Potret", "Aku eńau", "", 241));
+        assert_eq!(n.title, "eńau feat. Ari Lesmana - Sesi Potret");
+        assert_eq!(read(&title_guesses(&n)[0]), pair("eńau feat. Ari Lesmana", "Sesi Potret"));
         // Nothing to read as "A - B".
         assert!(title_guesses(&q("Paper Boats", "The Lanterns", "", 0)).is_empty());
         assert!(title_guesses(&q(" - Paper Boats", "", "", 0)).is_empty());

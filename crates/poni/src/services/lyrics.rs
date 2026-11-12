@@ -712,9 +712,10 @@ mod pure {
     impl CacheEntry {
         pub const VERSION: u32 = 1;
         /// Raised whenever the lookup learns to find songs it used to miss
-        /// (2: subtitle tags and "Song - Artist" video titles), so misses
-        /// from an older lookup are asked again instead of kept for 3 days.
-        pub const LOOKUP: u32 = 2;
+        /// (2: subtitle tags and "Song - Artist" video titles; 3: "Artist
+        /// feat. X - Song" video titles), so misses from an older lookup are
+        /// asked again instead of kept for 3 days.
+        pub const LOOKUP: u32 = 3;
 
         pub fn new(record: Option<LrclibRecord>, now: i64) -> Self {
             Self { v: Self::VERSION, lookup: Self::LOOKUP, fetched_at: now, record }
