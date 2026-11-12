@@ -68,6 +68,8 @@ fn rows(st: &AppState) -> Vec<&'static Addon> {
         .copied()
         .filter(|a| a.id != addons::SCREEN_RECORDER.id || st.recorder_ready())
         .filter(|a| a.id != addons::DOWNLOADER.id || st.downloader_offered)
+        // No player for it in the Mac app.
+        .filter(|a| a.id != addons::QURAN.id || !MAC)
         .collect()
 }
 
@@ -95,6 +97,7 @@ fn status(st: &AppState, a: &Addon) -> Status {
 fn icon(a: &Addon) -> Icon {
     match a.id {
         "sholat" => Icon::Moon,
+        "quran" => Icon::Book,
         "ja" => Icon::Lyrics,
         "script" => Icon::Script,
         "system" => Icon::Gauge,

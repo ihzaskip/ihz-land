@@ -1042,6 +1042,12 @@ impl<'a> Canvas<'a> {
         }
     }
 
+    /// The Windows app's Quran text; the Mac app has no Quran page, so plain
+    /// centred text (its spans unpainted).
+    pub fn quran_text(&mut self, s: &str, r: Rect, size: f32, color: Color, _spans: &[(u32, u32, Color)]) {
+        self.text(s, r, &TextStyle::new(size).color(color).center().wrap());
+    }
+
     /// Measure text: (width, height) in DIPs, laid out within `max_w`.
     pub fn measure(&mut self, s: &str, st: &TextStyle, max_w: f32) -> (f32, f32) {
         let mut st = *st;

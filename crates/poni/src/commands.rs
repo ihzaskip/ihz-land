@@ -168,6 +168,8 @@ pub enum Command {
     /// Open the Settings window, or bring it forward (the gear, Windows).
     OpenSettings,
     SetPage(PageKind),
+    /// The Quran page's player (`app_quran`, Windows).
+    Quran(QuranCmd),
     /// Keep the island open even when the cursor leaves.
     SetPinned(bool),
     Collapse,
@@ -207,6 +209,17 @@ pub enum Command {
     Usage(UsageCmd),
     /// The Downloads page (`pages::downloads`).
     Download(DownloadCmd),
+}
+
+/// What the Quran page asks of its player.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum QuranCmd {
+    /// Show this surah from this ayah (read from the add-on's pack); a
+    /// recitation playing goes on from there.
+    Open { surah: u16, ayah: u16 },
+    PlayPause,
+    /// Move the recitation to this many ms into the surah.
+    Seek(u32),
 }
 
 /// What the Downloads page asks for.

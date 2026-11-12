@@ -384,6 +384,8 @@ pub struct App {
     glass: crate::glass::Glass,
     /// Prayer times' adzan, while it plays.
     adzan: services::adzan::AdzanPlayer,
+    /// The Quran page's recitation, from its first Play.
+    quran: services::quran::QuranPlayer,
     /// Caffeine's reminder before last call: its minute and the day it showed.
     last_call: crate::last_call::Reminder,
     /// The IELTS page's calls, microphone and voice (each only while needed).
@@ -661,6 +663,7 @@ impl App {
             services: None,
             glass: crate::glass::Glass::new(services::apps_use_light_theme()),
             adzan: Default::default(),
+            quran: Default::default(),
             last_call: Default::default(),
             ielts: Default::default(),
             ielts_music: false,
@@ -2076,6 +2079,10 @@ impl App {
         if before.addon_on(downloader_id) && !self.st.settings.addon_on(downloader_id) {
             self.downloads_off();
         }
+        // The Quran: off stops its recitation and lets its data go.
+        if before.addon_on(poni_core::addons::QURAN.id) && !self.st.settings.addon_on(poni_core::addons::QURAN.id) {
+            self.quran_off();
+        }
         // An add-on switched on downloads its files; off deletes them.
         for a in poni_core::addons::ALL {
             let on = self.st.settings.addon_on(a.id);
@@ -2498,6 +2505,8 @@ impl App {
             AppEvent::Notify(ev) => self.on_notify(ev),
             AppEvent::Usage(ev) => self.on_usage(ev),
             AppEvent::AdzanEnded => self.adzan_ended(),
+            AppEvent::QuranEnded => self.quran_ended(),
+            AppEvent::QuranFailed => self.quran_failed(),
             AppEvent::Download { id, line } => self.download_line(id, line),
             AppEvent::DownloadEnded { id, ok } => self.download_ended(id, ok),
             AppEvent::Ielts(reply) => {
@@ -3347,9 +3356,11 @@ impl App {
         }
         self.ielts_tick();
         self.script_tick();
-        // Prayer times, System, Caffeine, AI usage, IELTS or Downloader switched off: its tab is gone.
+        self.quran_tick();
+        // Prayer times, Quran, System, Caffeine, AI usage, IELTS or Downloader switched off: its tab is gone.
         let gone = match self.st.page {
             PageKind::Prayer => !self.st.prayer_on(),
+            PageKind::Quran => !self.st.quran_on(),
             PageKind::System => !self.st.system_on(),
             PageKind::Caffeine => !self.st.caffeine_on(),
             PageKind::Downloads => !self.st.downloader_on(),
@@ -4427,6 +4438,7 @@ impl App {
                     SetTimer(self.hwnd, TIMER_SAVE, 800, None);
                 },
                 Command::SetPage(p) => self.set_page(p),
+                Command::Quran(c) => self.quran_cmd(c),
                 Command::OpenSystem(m) => {
                     self.st.ui.system_module = m;
                     self.set_page(PageKind::System);
@@ -5309,6 +5321,10 @@ fn files_label(n: usize) -> String {
 // The Downloads page's commands and yt-dlp's reports.
 #[path = "app_downloads.rs"]
 mod downloads;
+
+// The Quran page's commands and its recitation.
+#[path = "app_quran.rs"]
+mod quran;
 
 #[cfg(test)]
 mod tests {

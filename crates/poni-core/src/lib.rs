@@ -33,6 +33,7 @@ pub mod phonedrop;
 pub mod pomodoro;
 pub mod power;
 pub mod prayer;
+pub mod quran;
 pub mod recorder;
 pub mod romanize;
 pub mod script;

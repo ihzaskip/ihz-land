@@ -557,7 +557,7 @@ fn draw_source(ui: &mut Ui, x: f32, y: f32, max_w: f32, label: &str, dot: Color,
 }
 
 /// Previous / next. Disabled buttons are drawn inert and take no input.
-fn side_button(ui: &mut Ui, id: WidgetId, c: Point, icon: Icon, enabled: bool) -> bool {
+pub(crate) fn side_button(ui: &mut Ui, id: WidgetId, c: Point, icon: Icon, enabled: bool) -> bool {
     let r = Rect::from_center(c, SIDE_BTN, SIDE_BTN);
     if enabled {
         ui.icon_button(id, r, icon, palette::TEXT, CONTROL_ICON).clicked
@@ -569,7 +569,7 @@ fn side_button(ui: &mut Ui, id: WidgetId, c: Point, icon: Icon, enabled: bool) -
 
 /// The big play/pause: a white disc with a black glyph (on a light look, its
 /// accent disc with a white glyph).
-fn play_button(ui: &mut Ui, c: Point, playing: bool, enabled: bool) -> bool {
+pub(crate) fn play_button(ui: &mut Ui, c: Point, playing: bool, enabled: bool) -> bool {
     let icon = if playing { Icon::Pause } else { Icon::Play };
     let icon_r = Rect::from_center(c, CONTROL_ICON, CONTROL_ICON);
     if !enabled {

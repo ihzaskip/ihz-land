@@ -27,6 +27,7 @@ pub mod pairdrop;
 pub mod phonedrop;
 pub mod power;
 pub mod psu;
+pub mod quran;
 pub mod recorder;
 pub mod romanize;
 #[cfg(test)]
