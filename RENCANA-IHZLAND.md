@@ -37,9 +37,10 @@ Keputusan user (12 Nov 2026) ada di bawah. Centang tiap langkah setelah selesai.
        `temanielts`, diautentikasi dengan kunci perangkat dari langkah 6
        (`poni_core::ielts::BASE` = `https://temanielts.com`).
 8. [x] **Quran**: tombol "Read Quran" membuka pemutar di `https://work.ihz.app`.
-9. [ ] **Phone drop**: `server/drop-server.mjs` dijalankan di VPS Hermes
-       (docker compose, seperti Duit) di `https://drop.ihz.app`, lalu default
-       `PONI_DROP_SERVER` diganti. TURN Cloudflare opsional.
+9. [~] **Phone drop**: default `PONI_DROP_SERVER` sudah `https://drop.ihz.app` (aplikasi).
+       Server dan halaman ponsel ada di github.com/ihzaskip/drop-ihz, tapi **belum di-hosting**
+       (VPS Hermes sudah tidak ada; Render minta kartu). Sampai di-hosting, pairing ponsel
+       belum jalan; phone drop lewat Wi-Fi yang sama tetap jalan. TURN Cloudflare opsional.
 10. [ ] **Kota sholat**: tetap memakai `studio.oyenza.com/places` (keputusan user).
 11. [ ] **Saluran rilis**: GitHub Pages fork (`ihzaskip.github.io/oyenza-studio`),
         environment `release` dengan secret `UPDATE_FEED_KEY`

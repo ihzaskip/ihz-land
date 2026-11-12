@@ -1,6 +1,9 @@
 # Paired phone drop: meeting server and phone page
 
-The meeting server and the phone page for Oyenza Studio's paired phone drop. The
+ihz.land's own copy runs at `https://drop.ihz.app` (the app's default
+`PONI_DROP_SERVER`), hosted from [ihzaskip/drop-ihz](https://github.com/ihzaskip/drop-ihz).
+
+The meeting server and the phone page for ihz.land's paired phone drop. The
 contract between the phone page, this server and the PC is
 [`docs/paired-drop.md`](../docs/paired-drop.md); read it first.
 
@@ -39,7 +42,7 @@ session life, 120000), `--rate` (requests a minute per address, 120).
    and its service worker. With Cloudflare in
    front, start it with `--trust-proxy` so each phone gets its own rate limit.
    Long polls hold for up to 25 s, which fits Cloudflare's 100 s limit.
-3. Point Oyenza Studio at it with `PONI_DROP_SERVER=https://your.host` on the PC.
+3. Point ihz.land at it with `PONI_DROP_SERVER=https://your.host` on the PC.
    Pairing QR codes then carry your address.
 
 Every answer carries a strict Content-Security-Policy; the page has no inline
@@ -61,7 +64,7 @@ python3 tools/pairdrop-e2e/run_e2e.py --webkit
 
 (needs Python Playwright with Chromium and WebKit; on the build VM wrap it in
 `vm-gate run --`). `run_interop.py` in the same folder runs the phone page
-against Oyenza Studio's real Rust PC side instead of the emulator, through the
+against ihz.land's real Rust PC side instead of the emulator, through the
 `pairdrop_pc` example (build it first with
 `cargo build -p poni-core --example pairdrop_pc`).
 

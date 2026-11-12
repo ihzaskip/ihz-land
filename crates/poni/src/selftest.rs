@@ -234,7 +234,7 @@ const PHONE_URL: &str = "HTTP://192.168.1.20:53530/K7Q2M9XWZ4R8T6YB3NPV5HJC2D/";
 
 /// The pairing link in the screenshots: the contract's test secret, so no
 /// real pair can use it.
-const PAIR_URL: &str = "https://drop.oyenza.com/p#k=AAECAwQFBgcICQoLDA0ODw";
+const PAIR_URL: &str = "https://drop.ihz.app/p#k=AAECAwQFBgcICQoLDA0ODw";
 
 /// Paired phones as the pairing scenes show them (made up).
 fn fake_paired(scene: Scene, unix: i64) -> Vec<PairedPhone> {

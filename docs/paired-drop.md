@@ -9,7 +9,7 @@ Three parts work together:
 | Part | Where | What it does |
 |---|---|---|
 | Oyenza Studio | the PC (`crates/poni-core/src/pairdrop`, `crates/poni/src/services/pairdrop.rs`) | keeps the pairs, waits for phones through the meeting server, answers with a direct WebRTC link, saves the files |
-| Phone page | `server/public`, served at `https://drop.oyenza.com` | pairing, your PCs (online or offline), send, save Shelf files; installs to the Home Screen; joins Android's share sheet |
+| Phone page | `server/public`, served at `https://drop.ihz.app` | pairing, your PCs (online or offline), send, save Shelf files; installs to the Home Screen; joins Android's share sheet |
 | Meeting server | `server/drop-server.mjs` | tells a phone whether its PC is online and passes the two sides' connection details; hands out short-lived relay passes |
 
 The files themselves go phone ↔ PC over a WebRTC data channel: straight over
@@ -27,7 +27,7 @@ and one phone). It goes to the phone only inside the QR code, in the link's
 fragment, which browsers never send to a server:
 
 ```
-https://drop.oyenza.com/p#k=<b64u(S)>
+https://drop.ihz.app/p#k=<b64u(S)>
 ```
 
 `b64u` is base64url without padding. Both sides derive, with SHA-256:
@@ -151,4 +151,4 @@ Put it behind HTTPS (the phone page needs a secure context). For the relay,
 set `TURN_KEY_ID` and `TURN_KEY_API_TOKEN` from a Cloudflare Realtime TURN key;
 without them, phones and PCs connect directly or not at all. Oyenza Studio reads
 the server address from the environment variable `PONI_DROP_SERVER`
-(default `https://drop.oyenza.com`).
+(default `https://drop.ihz.app`).

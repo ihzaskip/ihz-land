@@ -78,7 +78,7 @@ impl PairDropService {
     }
 }
 
-/// The meeting server: `PONI_DROP_SERVER` (for self-hosting and tests), else Oyenza's.
+/// The meeting server: `PONI_DROP_SERVER` (for self-hosting and tests), else drop.ihz.app.
 fn server() -> String {
     std::env::var("PONI_DROP_SERVER")
         .ok()
