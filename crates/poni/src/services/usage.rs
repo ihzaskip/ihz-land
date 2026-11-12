@@ -42,7 +42,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 
-const USER_AGENT: &str = concat!("OyenzaStudio/", env!("CARGO_PKG_VERSION"), " (+https://github.com/lucacadalora/oyenza-studio)");
+const USER_AGENT: &str = concat!("ihzland/", env!("CARGO_PKG_VERSION"), " (+https://github.com/lucacadalora/oyenza-studio)");
 /// Budget for one request: connect, headers and body.
 const TIMEOUT: Duration = Duration::from_secs(8);
 /// A typed key longer than this is a paste gone wrong.
@@ -905,7 +905,7 @@ fn run_login(program: Option<PathBuf>) {
         Some(p) => format!("{} auth login", quote(&p.to_string_lossy())),
         None => format!("\"${{SHELL:-/bin/zsh}}\" -lic {}", quote("claude auth login")),
     };
-    let script = format!("#!/bin/sh\n# Oyenza Studio's AI tab: Claude Code's own sign-in.\n{login} && echo && echo 'Signed in. Oyenza Studio reads it when you open the AI tab.'\n");
+    let script = format!("#!/bin/sh\n# ihz.land's AI tab: Claude Code's own sign-in.\n{login} && echo && echo 'Signed in. ihz.land reads it when you open the AI tab.'\n");
     let dir = crate::paths::cache_dir();
     let path = dir.join("Claude Code sign-in.command");
     let _ = std::fs::remove_file(&path);

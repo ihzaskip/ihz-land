@@ -325,11 +325,11 @@ impl Problem {
             Problem::Busy(_) => "Your recording is kept. Try again in a minute.".into(),
             Problem::AiFailed | Problem::Server | Problem::Gone | Problem::TooSlow => "Your recording is kept. Try again.".into(),
             Problem::NothingHeard => "Was the call muted? Check that the bars move next time.".into(),
-            Problem::Unfinished => "Its recording was kept when Oyenza Studio closed. Write it up now, or throw it away.".into(),
+            Problem::Unfinished => "Its recording was kept when ihz.land closed. Write it up now, or throw it away.".into(),
             Problem::ProRequired => "This Oyenza account doesn't have Pro. Your recording is kept.".into(),
             Problem::Offline => "Your recording is kept. Check the internet, then try again.".into(),
             Problem::SignedOut => "Sign in to Oyenza again: your recording is kept.".into(),
-            Problem::Capture(CaptureIssue::MicDenied) if cfg!(target_os = "macos") => "Turn on Oyenza Studio in System Settings \u{203a} Privacy & Security \u{203a} Microphone.".into(),
+            Problem::Capture(CaptureIssue::MicDenied) if cfg!(target_os = "macos") => "Turn on ihz.land in System Settings \u{203a} Privacy & Security \u{203a} Microphone.".into(),
             Problem::Capture(CaptureIssue::MicDenied) => "Turn on microphone access for desktop apps in Windows Settings.".into(),
             Problem::Capture(CaptureIssue::NoSound) => "Plug in a microphone or speakers, then try again.".into(),
             Problem::Capture(CaptureIssue::Failed) => "A sound device went away. What was heard is kept.".into(),
@@ -527,7 +527,7 @@ pub fn markdown(n: &Notes, started: &LocalDateTime, with_transcript: bool) -> St
             md += &format!("**[{}] {}:** {}\n\n", fmt_length(l.t), l.who, l.text);
         }
     }
-    md += "\n---\nNotes by Oyen, in Oyenza Studio\n";
+    md += "\n---\nNotes by Oyen, in ihz.land\n";
     md
 }
 

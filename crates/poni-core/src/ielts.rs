@@ -633,7 +633,7 @@ impl Problem {
             Problem::BadLevel => "Pilih level lain di daftar, terus mulai lagi.".into(),
             Problem::BadAudio => "Coba rekam ulang jawabanmu ya.".into(),
             Problem::Server => "Coba lagi sebentar lagi.".into(),
-            Problem::Mic(MicIssue::Denied) if mac => "Nyalain Oyenza Studio di Privasi & Keamanan › Mikrofon, terus coba lagi.".into(),
+            Problem::Mic(MicIssue::Denied) if mac => "Nyalain ihz.land di Privasi & Keamanan › Mikrofon, terus coba lagi.".into(),
             Problem::Mic(MicIssue::Denied) => "Nyalain akses mikrofon buat aplikasi desktop di Pengaturan Windows, terus coba lagi.".into(),
             Problem::Mic(MicIssue::NoDevice) => "Colok mic atau headset dulu, terus coba lagi.".into(),
             Problem::Mic(MicIssue::Failed) => "Coba cabut-colok mic-nya, terus coba lagi.".into(),

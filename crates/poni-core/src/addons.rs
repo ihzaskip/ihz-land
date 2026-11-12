@@ -240,7 +240,7 @@ pub const CAFFEINE: Addon = Addon {
 pub const SCREEN_RECORDER: Addon = Addon {
     id: "recorder",
     title: "Screen recorder",
-    blurb: "Record your screen from the island, with Oyenza Studio Recorder.",
+    blurb: "Record your screen from the island, with ihz.land Recorder.",
     mac_blurb: None,
     tag: "",
     files: &[],

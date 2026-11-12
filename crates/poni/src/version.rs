@@ -27,7 +27,7 @@ fn label(version: &str, kind: &str, commit: &str, day: &str) -> String {
         "test" => format!("test build {commit}, {day}"),
         _ => "local build".to_string(),
     };
-    if detail.is_empty() { format!("About Oyenza Studio {version}") } else { format!("About Oyenza Studio {version} ({detail})") }
+    if detail.is_empty() { format!("About ihz.land {version}") } else { format!("About ihz.land {version} ({detail})") }
 }
 
 fn url(version: &str, kind: &str, commit: &str) -> String {
@@ -44,10 +44,10 @@ mod tests {
 
     #[test]
     fn the_about_line_says_which_build_this_is() {
-        assert_eq!(label("0.2.3", "release", "c7d77c8", "25 Oct 2026"), "About Oyenza Studio 0.2.3 (25 Oct 2026)");
-        assert_eq!(label("0.2.3", "test", "c7d77c8", "25 Oct 2026"), "About Oyenza Studio 0.2.3 (test build c7d77c8, 25 Oct 2026)");
-        assert_eq!(label("0.2.3", "local", "", ""), "About Oyenza Studio 0.2.3 (local build)");
-        assert!(about_label().starts_with(&format!("About Oyenza Studio {VERSION}")));
+        assert_eq!(label("0.2.3", "release", "c7d77c8", "25 Oct 2026"), "About ihz.land 0.2.3 (25 Oct 2026)");
+        assert_eq!(label("0.2.3", "test", "c7d77c8", "25 Oct 2026"), "About ihz.land 0.2.3 (test build c7d77c8, 25 Oct 2026)");
+        assert_eq!(label("0.2.3", "local", "", ""), "About ihz.land 0.2.3 (local build)");
+        assert!(about_label().starts_with(&format!("About ihz.land {VERSION}")));
     }
 
     #[test]

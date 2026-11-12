@@ -263,7 +263,7 @@ fn addon_row(ui: &mut Ui, st: &AppState, r: Rect, i: usize, a: &Addon, card: Opt
     let line_color = if status == Status::Failed { palette::ORANGE } else { palette::TEXT_DIM };
     // Screen recorder came on with the recorder, not by a click here: say so.
     let line = if a.id == addons::SCREEN_RECORDER.id && status == Status::Ready {
-        "On, since Oyenza Studio Recorder is installed".to_string()
+        "On, since ihz.land Recorder is installed".to_string()
     } else {
         status.line(a, MAC)
     };

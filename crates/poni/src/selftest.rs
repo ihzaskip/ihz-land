@@ -2224,7 +2224,7 @@ pub fn fetch_phone_page(url: &str) -> (bool, String) {
         Ok(out)
     };
     match fetch() {
-        Ok(resp) if resp.starts_with("HTTP/1.1 200") && resp.contains("<title>Oyenza Studio") && resp.trim_end().ends_with("</html>") => {
+        Ok(resp) if resp.starts_with("HTTP/1.1 200") && resp.contains("<title>ihz.land") && resp.trim_end().ends_with("</html>") => {
             (true, format!("served the page at {addr} ({} bytes)", resp.len()))
         }
         Ok(resp) => (false, format!("unexpected answer from {addr}: {}", resp.lines().next().unwrap_or(""))),
@@ -4608,7 +4608,7 @@ impl SelfTest {
             let n = f.total();
             drop(f);
             if self.renderer != "software" {
-                self.checks.push(check("frame-count", n > 0, format!("{n} of Oyenza Studio's own frames counted from Windows' frame log")));
+                self.checks.push(check("frame-count", n > 0, format!("{n} of ihz.land's own frames counted from Windows' frame log")));
             } else {
                 crate::pinfo!("selftest: frame count saw {n} frames (the software renderer presents none)");
             }

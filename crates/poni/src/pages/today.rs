@@ -195,7 +195,7 @@ fn draw_ask(ui: &mut Ui, st: &mut AppState, r: Rect, card: Option<(Rect, f32)>, 
     let (title, body) = match ask {
         Ask::SignIn => ("Your weeks, right here", "Your meetings from Google Calendar and flights from Gmail, today and the next five weeks, through your Oyenza account."),
         Ask::Code => ("Your weeks, right here", "Approve the sign-in code in oyenza.app, then your days show here."),
-        Ask::NoApps => ("Pick what Today shows", "Switch on Google Calendar or Gmail in oyenza.app, under Connected apps › Oyenza Studio."),
+        Ask::NoApps => ("Pick what Today shows", "Switch on Google Calendar or Gmail in oyenza.app, under Connected apps › ihz.land."),
         Ask::Waiting => ("Getting your days…", "From the apps you switched on in oyenza.app."),
         Ask::Failed => ("Couldn't get your days", "Check the connection, then try again."),
     };

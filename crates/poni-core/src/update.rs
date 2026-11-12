@@ -159,7 +159,7 @@ fn headline(text: &str, version: &str) -> String {
     let clean: String = text.chars().map(|c| if c.is_control() { ' ' } else { c }).collect();
     let mut line = clean.split_whitespace().collect::<Vec<_>>().join(" ");
     if line.is_empty() {
-        line = format!("Oyenza Studio {version}");
+        line = format!("ihz.land {version}");
     }
     if line.chars().count() > HEADLINE_MAX {
         line = line.chars().take(HEADLINE_MAX - 1).collect::<String>().trim_end().to_string() + "…";
@@ -329,12 +329,12 @@ mod tests {
 
     #[test]
     fn the_original_projects_release_reads() {
-        let gh = r#"{"tag_name":"v0.2.30","name":"Oyenza Studio 0.2.30","draft":false,"prerelease":false,"body":"**Caffeine: your last call for coffee.** More text."}"#;
+        let gh = r#"{"tag_name":"v0.2.30","name":"ihz.land 0.2.30","draft":false,"prerelease":false,"body":"**Caffeine: your last call for coffee.** More text."}"#;
         let u = parse_upstream(gh).unwrap();
         assert_eq!(u.version, "0.2.30");
         assert_eq!(u.headline, "Caffeine: your last call for coffee");
         assert_eq!(u.notes, "https://github.com/lucacadalora/oyenza-studio/releases/tag/v0.2.30");
-        assert_eq!(parse_upstream(r#"{"tag_name":"v0.3.0","body":"plain"}"#).unwrap().headline, "Oyenza Studio 0.3.0");
+        assert_eq!(parse_upstream(r#"{"tag_name":"v0.3.0","body":"plain"}"#).unwrap().headline, "ihz.land 0.3.0");
         assert!(parse_upstream(&gh.replace("\"prerelease\":false", "\"prerelease\":true")).is_err());
         assert!(parse_upstream(r#"{"tag_name":"addon-ja-1"}"#).is_err());
         let mut m = Memory { upstream: Some(u), ..Memory::default() };
@@ -410,7 +410,7 @@ mod tests {
         let r = parse_payload(&payload(V, "").replace("Sing along from the closed island", &format!("{long}\\nmore"))).unwrap();
         assert!(r.headline.chars().count() <= HEADLINE_MAX && r.headline.ends_with('…') && !r.headline.contains('\n'), "{}", r.headline);
         let r = parse_payload(&payload(V, "").replace("Sing along from the closed island", "")).unwrap();
-        assert_eq!(r.headline, "Oyenza Studio 0.2.3");
+        assert_eq!(r.headline, "ihz.land 0.2.3");
     }
 
     #[test]

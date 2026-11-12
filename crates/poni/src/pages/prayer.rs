@@ -89,7 +89,7 @@ const FOOT_H: f32 = 28.0;
 const SEARCH_H: f32 = 32.0;
 const RESULT_H: f32 = 26.0;
 const RESULTS: usize = 8;
-const QURAN: &str = "https://quran.oyenza.com";
+const QURAN: &str = "https://work.ihz.app";
 /// The picker's row for whose times and Hijri dates, at its bottom.
 const FOLLOW_H: f32 = 28.0;
 const FOLLOWS: [(PrayerFollow, &str); 2] = [(PrayerFollow::Kemenag, "Kemenag"), (PrayerFollow::Muhammadiyah, "Muhammadiyah (KHGT)")];
@@ -100,9 +100,9 @@ const LOCATION_SETTINGS: &str =
     if cfg!(windows) { "ms-settings:privacy-location" } else { "x-apple.systempreferences:com.apple.preference.security?Privacy_LocationServices" };
 /// The picker's line when location is off, or when the system couldn't say.
 const DENIED_HINT: &str = if cfg!(windows) {
-    "Windows' location is off for Oyenza Studio. Turn it on to find your place, or type it."
+    "Windows' location is off for ihz.land. Turn it on to find your place, or type it."
 } else {
-    "Location Services is off for Oyenza Studio. Turn it on to find your place, or type it."
+    "Location Services is off for ihz.land. Turn it on to find your place, or type it."
 };
 const UNKNOWN_HINT: &str =
     if cfg!(windows) { "Windows couldn't tell where this PC is. Type your city." } else { "macOS couldn't tell where this Mac is. Type your city." };

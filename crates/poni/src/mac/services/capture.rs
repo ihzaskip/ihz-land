@@ -490,7 +490,7 @@ fn open_pc() -> Result<(u32, Running), MicError> {
             let _: () = msg_send![&*d, setPrivateTap: true];
         }
         if answers(sel!(setName:)) {
-            let _: () = msg_send![&*d, setName: &*NSString::from_str("Oyenza Studio meeting notes")];
+            let _: () = msg_send![&*d, setName: &*NSString::from_str("ihz.land meeting notes")];
         }
         d
     };
@@ -558,7 +558,7 @@ fn aggregate(output_uid: &str, tap_uid: &str) -> Result<u32, MicError> {
     let tap = dict(vec![("uid", any(s(tap_uid))), ("drift", any(NSNumber::new_bool(true)))]);
     let unique = format!("com.oyenza.studio.notes.{}", std::process::id());
     let desc = dict(vec![
-        ("name", any(s("Oyenza Studio meeting notes"))),
+        ("name", any(s("ihz.land meeting notes"))),
         ("uid", any(s(&unique))),
         ("master", any(s(output_uid))),
         ("private", any(NSNumber::new_bool(true))),

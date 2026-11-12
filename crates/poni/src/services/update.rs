@@ -241,7 +241,7 @@ fn check_app(app: &Path, version: &str) -> Result<(), String> {
     let plist = app.join("Contents/Info.plist");
     let key = |k: &str| output(Command::new("/usr/bin/plutil").args(["-extract", k, "raw", "-o", "-"]).arg(&plist));
     if key("CFBundleIdentifier")?.trim() != BUNDLE_ID {
-        return Err("it isn't Oyenza Studio".into());
+        return Err("it isn't ihz.land".into());
     }
     let v = key("CFBundleShortVersionString")?;
     if v.trim() != version {
@@ -275,7 +275,7 @@ pub fn install(app: &Path, version: &str) -> Result<(), String> {
     check_app(app, version)?;
     let folder = bundle.parent().ok_or("no folder")?;
     // A hidden copy in the same folder (so on the same disk), swapped in.
-    let next = folder.join(".Oyenza Studio update.app");
+    let next = folder.join(".ihz.land update.app");
     let _ = std::fs::remove_dir_all(&next);
     run("ditto", Command::new("/usr/bin/ditto").arg(app).arg(&next))?;
     let old = match swap(&next, &bundle) {
@@ -306,7 +306,7 @@ fn swap(next: &Path, bundle: &Path) -> Result<(), String> {
     }
     let swap_err = std::io::Error::last_os_error();
     crate::pinfo!("updates: couldn't swap in one step ({swap_err}); moving the two apps");
-    let aside = bundle.with_file_name(".Oyenza Studio old.app");
+    let aside = bundle.with_file_name(".ihz.land old.app");
     let _ = std::fs::remove_dir_all(&aside);
     std::fs::rename(bundle, &aside).map_err(|e| format!("macOS didn't let this copy move ({e})"))?;
     if let Err(e) = std::fs::rename(next, bundle) {

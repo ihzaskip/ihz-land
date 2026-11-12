@@ -41,7 +41,7 @@ use std::collections::VecDeque;
 use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 
-const USER_AGENT: &str = concat!("OyenzaStudio/", env!("CARGO_PKG_VERSION"), " (+https://github.com/lucacadalora/oyenza-studio)");
+const USER_AGENT: &str = concat!("ihzland/", env!("CARGO_PKG_VERSION"), " (+https://github.com/lucacadalora/oyenza-studio)");
 const TIMEOUT: Duration = Duration::from_secs(8);
 const NOTE_TIMEOUT: Duration = Duration::from_secs(30);
 /// Opening the tab again within this time asks for nothing new.

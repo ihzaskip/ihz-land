@@ -98,7 +98,7 @@ impl Room {
         DirBuilder::new().mode(0o700).create(&dir)?;
         let room = Room { asked: dir.join(ASKED), dir };
         let note = format!("'{}'", room.asked.to_string_lossy().replace('\'', "'\\''"));
-        let opener = format!("#!/bin/sh\n# Oyenza Studio: agy wanted a browser (to sign in again). None is opened.\n: > {note}\nexit 1\n");
+        let opener = format!("#!/bin/sh\n# ihz.land: agy wanted a browser (to sign in again). None is opened.\n: > {note}\nexit 1\n");
         for name in OPENERS {
             OpenOptions::new().write(true).create_new(true).mode(0o700).open(room.dir.join(name))?.write_all(opener.as_bytes())?;
         }

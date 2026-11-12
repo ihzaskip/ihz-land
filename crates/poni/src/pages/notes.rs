@@ -201,9 +201,9 @@ fn draw_idle(ui: &mut Ui, st: &mut AppState, r: Rect) {
     let r = Rect::new(r.x, r.y + 4.0, r.w.min(420.0), r.h);
     let y = headline(ui, r, "Oyen takes your meeting notes");
     let body = if cfg!(target_os = "macos") {
-        "He listens to your microphone and your Mac's sound, so a call in Meet, Zoom or Teams is heard with no bot joining. Stop when it's over: the notes and the transcript are saved to Documents \u{203a} Oyenza Studio \u{203a} Notes."
+        "He listens to your microphone and your Mac's sound, so a call in Meet, Zoom or Teams is heard with no bot joining. Stop when it's over: the notes and the transcript are saved to Documents \u{203a} ihz.land \u{203a} Notes."
     } else {
-        "He listens to your microphone and your PC's sound, so a call in Meet, Zoom or Teams is heard with no bot joining. Stop when it's over: the notes and the transcript are saved to Documents \u{203a} Oyenza Studio \u{203a} Notes."
+        "He listens to your microphone and your PC's sound, so a call in Meet, Zoom or Teams is heard with no bot joining. Stop when it's over: the notes and the transcript are saved to Documents \u{203a} ihz.land \u{203a} Notes."
     };
     let y = para(ui, Rect::new(r.x, y + 6.0, r.w, 80.0), body, palette::TEXT_DIM);
     let foot = Rect::new(r.x, r.bottom() - PILL_SMALL - 6.0, r.w, PILL_SMALL);

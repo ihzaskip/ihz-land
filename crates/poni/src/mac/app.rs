@@ -190,12 +190,12 @@ pub fn main_entry() -> i32 {
         std::env::set_var("PONI_HOME", &home);
     }
     crate::plog::init(paths::log_path());
-    pinfo!("Oyenza Studio {} starting on macOS (args: {:?})", env!("CARGO_PKG_VERSION"), &args[1..]);
+    pinfo!("ihz.land {} starting on macOS (args: {:?})", env!("CARGO_PKG_VERSION"), &args[1..]);
     std::panic::set_hook(Box::new(|info| {
         perror!("panic: {info}");
     }));
     let Some(mtm) = MainThreadMarker::new() else {
-        eprintln!("Oyenza Studio must start on the main thread");
+        eprintln!("ihz.land must start on the main thread");
         return 2;
     };
     let _lock = match single_instance() {
@@ -779,11 +779,11 @@ impl App {
         }
         if self.first_run && self.smoke.is_none() {
             let place = if self.screen.notch.is_some() { "Point at the notch to open it" } else { "Point at the island to open it" };
-            self.st.notify(Icon::CheckCircle, self.st.accent, "Oyenza Studio is on", place, 6.0, None);
+            self.st.notify(Icon::CheckCircle, self.st.accent, "ihz.land is on", place, 6.0, None);
         }
         if self.smoke.is_none() {
             if let Some(dir) = services::trash_app_from_before_rename() {
-                self.st.notify(Icon::Trash, self.st.accent, "Oyen Poni is now Oyenza Studio", format!("The old copy in {dir} is in the Trash"), 8.0, None);
+                self.st.notify(Icon::Trash, self.st.accent, "Oyen Poni is now ihz.land", format!("The old copy in {dir} is in the Trash"), 8.0, None);
             }
         }
         if self.smoke.is_some() {
@@ -800,7 +800,7 @@ impl App {
         // Downloads under way end with the app (std::process::exit runs no
         // destructors): yt-dlp's groups get their SIGTERM now.
         self.downloader = None;
-        pinfo!("Oyenza Studio exiting with code {code}");
+        pinfo!("ihz.land exiting with code {code}");
         std::process::exit(code);
     }
 
@@ -1384,7 +1384,7 @@ impl App {
                 pinfo!("start at login: {now:?}");
                 if now == Login::NeedsApproval {
                     services::login::open_settings();
-                    self.st.notify(Icon::Sliders, palette::ORANGE, "Allow Oyenza Studio to start at login", "Turn it on in Login Items", 8.0, None);
+                    self.st.notify(Icon::Sliders, palette::ORANGE, "Allow ihz.land to start at login", "Turn it on in Login Items", 8.0, None);
                 }
             }
         }
@@ -1581,7 +1581,7 @@ impl App {
             if let Some(dmg) = self.updater.as_ref().and_then(|u| u.downloaded(&self.st)) {
                 services::open(&dmg.to_string_lossy());
                 self.collapse();
-                self.st.notify(Icon::Download, self.st.accent, "Install it by hand this time", "Drag Oyenza Studio to Applications in the window that opened", 10.0, None);
+                self.st.notify(Icon::Download, self.st.accent, "Install it by hand this time", "Drag ihz.land to Applications in the window that opened", 10.0, None);
                 return;
             }
         }
@@ -4091,7 +4091,7 @@ impl App {
                 self.st.pomodoro.start(self.st.now);
             }
             "notice" => {
-                self.st.notify(Icon::CheckCircle, self.st.accent, "Oyenza Studio is on", "Point at the island to open it", 30.0, None);
+                self.st.notify(Icon::CheckCircle, self.st.accent, "ihz.land is on", "Point at the island to open it", 30.0, None);
             }
             "volume-hud" => {
                 self.st.notice = None;
@@ -5375,7 +5375,7 @@ fn smoke_wav_format(path: &std::path::Path) -> Option<(u32, u16, u16, usize, usi
 /// The keychain items tools/mac-smoke.sh adds for the AI tab's reader: their
 /// service, and the passwords of the accounts "plain" and "accent" (an accent
 /// and a line break, which `security` prints as hex). "absent" is never added.
-const SMOKE_KEYCHAIN: (&str, &str, &str) = ("Oyenza Studio smoke", "{\"claudeAiOauth\":{\"accessToken\":\"test-token\"}}", "caf\u{e9}\nnext");
+const SMOKE_KEYCHAIN: (&str, &str, &str) = ("ihz.land smoke", "{\"claudeAiOauth\":{\"accessToken\":\"test-token\"}}", "caf\u{e9}\nnext");
 
 /// The smoke test of the AI tab's keychain reader (`services::keychain`) on
 /// the items above, with the tab closed, open, then closed with the notices

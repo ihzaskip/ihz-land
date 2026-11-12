@@ -656,7 +656,7 @@ impl Worker {
         match osascript(script) {
             Err(e) if e.contains("-1743") => {
                 if self.denied_at[p.index()].replace(Instant::now()).is_none() {
-                    pinfo!("media: macOS doesn't let Oyenza Studio control {} (System Settings > Privacy & Security > Automation)", p.name());
+                    pinfo!("media: macOS doesn't let ihz.land control {} (System Settings > Privacy & Security > Automation)", p.name());
                 }
                 Err(e)
             }

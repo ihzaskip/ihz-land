@@ -112,7 +112,7 @@ pub fn menu_items(s: &Settings, pinned: bool, login: Login, recorder: bool, oyen
         item("Open data folder", MenuCmd::OpenDataFolder, false),
         item(&crate::version::about_label(), MenuCmd::About, false),
         MenuItem::Separator,
-        MenuItem::Item { label: "Quit Oyenza Studio".into(), cmd: MenuCmd::Quit, checked: false, key: "q" },
+        MenuItem::Item { label: "Quit ihz.land".into(), cmd: MenuCmd::Quit, checked: false, key: "q" },
     ];
     // Only while the island sits off the middle, under Keep island open.
     if s.island_x.is_some() {
@@ -127,7 +127,7 @@ pub fn menu_items(s: &Settings, pinned: bool, login: Login, recorder: bool, oyen
     match update {
         // A new version first, until it is installed.
         UpdateLine::Offer(v) => {
-            items.splice(0..0, [item(&format!("Update to Oyenza Studio {v}…"), MenuCmd::Update, false), MenuItem::Separator]);
+            items.splice(0..0, [item(&format!("Update to ihz.land {v}…"), MenuCmd::Update, false), MenuItem::Separator]);
         }
         // Otherwise a look on request, under About (as in most Mac apps).
         UpdateLine::Check => {
@@ -218,7 +218,7 @@ impl MenuBar {
                 Some(img) => button.setImage(Some(&img)),
                 None => button.setTitle(&NSString::from_str("Poni")),
             }
-            button.setToolTip(Some(&NSString::from_str(&format!("Oyenza Studio {}", crate::version::VERSION))));
+            button.setToolTip(Some(&NSString::from_str(&format!("ihz.land {}", crate::version::VERSION))));
         }
         let target: Retained<MenuTarget> = unsafe { objc2::msg_send![MenuTarget::alloc(mtm), init] };
         let menu = build(mtm, &target, &menu_items(s, pinned, login, crate::services::recorder::installed(), oyenza, update));

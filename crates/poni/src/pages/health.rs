@@ -164,7 +164,7 @@ fn draw_not_connected(ui: &mut Ui, st: &mut AppState, r: Rect, center_y: f32) {
     let signed_in = matches!(st.oyenza.link, OyenzaLink::Connected { .. });
     let title = "Your steps, from your phone";
     let body = if signed_in {
-        "Open Oyenza on your iPhone or Android and, under your steps in Health (Sehat), turn on Show on Oyenza Studio. Your daily steps then show here."
+        "Open Oyenza on your iPhone or Android and, under your steps in Health (Sehat), turn on Show on ihz.land. Your daily steps then show here."
     } else {
         "Oyenza on your iPhone or Android reads them from Apple Health or Health Connect. Sign in to Oyenza to see them here."
     };
