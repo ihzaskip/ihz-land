@@ -16,9 +16,9 @@
 # workflow, so ci is run on the branch by hand before merging.
 name: Downloader pins
 
+# ihz.land (this fork): manual only. The Downloader's tools are pinned on the
+# original project's add-on releases; a new pin comes with an upstream merge.
 on:
-  schedule:
-    - cron: "23 2 * * 1"
   workflow_dispatch:
 
 permissions:

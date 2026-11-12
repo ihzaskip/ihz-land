@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Write latest.json, the file every copy of Oyenza Studio reads to learn that
-a new version is out (docs/updates.md). The Website workflow publishes it as
-https://studio.oyenza.com/latest.json with every deploy.
+"""Write latest.json, the file every copy of ihz.land reads to learn that a
+new version is out (docs/updates.md). The Website workflow publishes it as
+https://ihzaskip.github.io/oyenza-studio/latest.json with every deploy.
 
 It describes the latest GitHub release: its version and day, the first bold
 line of its notes as a headline, and the Windows installer and Mac DMG with
@@ -20,7 +20,7 @@ Usage:
     --check     build and print the payload only: no key, nothing signed
 
 Env: UPDATE_FEED_KEY (the private key, PEM), GH_TOKEN (optional: raises the
-API's rate limit), GITHUB_REPOSITORY (default lucacadalora/oyenza-studio).
+API's rate limit), GITHUB_REPOSITORY (default ihzaskip/oyenza-studio).
 Needs python3 (standard library only) and openssl.
 """
 
@@ -38,7 +38,7 @@ import urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 KEYS = os.path.join(ROOT, "crates", "poni-core", "data", "update-keys.txt")
-REPO = os.environ.get("GITHUB_REPOSITORY") or "lucacadalora/oyenza-studio"
+REPO = os.environ.get("GITHUB_REPOSITORY") or "ihzaskip/oyenza-studio"
 API = "https://api.github.com/repos/" + REPO
 SCHEMA = 1
 # The app shows the headline on the island, one line: keep it short.
@@ -52,7 +52,7 @@ def die(msg):
 
 def fetch(url, accept="application/vnd.github+json"):
     """GET with a few tries: GitHub's API hiccups now and then."""
-    headers = {"Accept": accept, "User-Agent": "oyenza-studio-update-feed"}
+    headers = {"Accept": accept, "User-Agent": "ihz-land-update-feed"}
     token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
     if token and url.startswith("https://api.github.com/"):
         headers["Authorization"] = "Bearer " + token
@@ -81,9 +81,18 @@ def is_version(v):
     return bool(re.fullmatch(r"[0-9]+(\.[0-9]+){1,3}", v or ""))
 
 
+class NoRelease(Exception):
+    pass
+
+
 def release(released):
     """The release the file describes: GitHub's latest, or RELEASED when it is newer."""
-    latest = api("/releases/latest")
+    try:
+        latest = api("/releases/latest")
+    except urllib.error.HTTPError as e:
+        if e.code == 404 and not released:
+            raise NoRelease()
+        raise
     version = latest["tag_name"].removeprefix("v")
     if released:
         if not is_version(released):
@@ -99,7 +108,7 @@ def release(released):
 def headline(notes, version):
     """The notes' first bold line ("**Sing along from the closed island.**")."""
     m = re.search(r"\*\*(.+?)\*\*", notes or "", re.S)
-    text = " ".join(m.group(1).split()).rstrip(".") if m else f"Oyenza Studio {version}"
+    text = " ".join(m.group(1).split()).rstrip(".") if m else f"ihz.land {version}"
     if len(text) > HEADLINE_MAX:
         text = text[: HEADLINE_MAX - 1].rsplit(" ", 1)[0].rstrip(",;:") + "…"
     return text
@@ -132,9 +141,9 @@ def payload(released):
         die(f'the release "{rel["tag_name"]}" is not a version tag')
     if rel.get("draft") or rel.get("prerelease"):
         die(f"v{version} is a draft or a pre-release")
-    windows = asset(rel, f"Oyenza-Studio-Setup-{version}.exe", version)
+    windows = asset(rel, f"ihz-land-Setup-{version}.exe", version)
     if windows is None:
-        die(f"v{version} has no Oyenza-Studio-Setup-{version}.exe")
+        die(f"v{version} has no ihz-land-Setup-{version}.exe")
     p = {
         "schema": SCHEMA,
         "version": version,
@@ -146,7 +155,7 @@ def payload(released):
     # The mac workflow adds the DMG minutes after the release is up, then
     # starts the Website workflow again: until then the file says nothing to
     # Macs, so they aren't sent to a download that isn't there yet.
-    mac = asset(rel, f"Oyenza-Studio-{version}-mac.dmg", version)
+    mac = asset(rel, f"ihz-land-{version}-mac.dmg", version)
     if mac is not None:
         p["mac"] = mac
     return p
@@ -227,14 +236,20 @@ def main(argv):
             rest.append(a)
     if check == bool(rest) or len(rest) > 1:
         die("usage: make_update_feed.py OUT.json [--released VERSION], or --check [--released VERSION]")
-    p = payload(released)
+    try:
+        p = payload(released)
+    except NoRelease:
+        # A fork before its first release: no file yet. Copies of the app read
+        # a 404 as "nothing new".
+        print(f"{REPO} has no release yet: no latest.json written")
+        return
     text = json.dumps(p, ensure_ascii=False, separators=(",", ":"))
     if check:
         print(json.dumps(p, ensure_ascii=False, indent=2))
         return
     key_id, signature = sign(text)
     feed = {
-        "about": "Oyenza Studio's update file. payload is signed (ECDSA P-256, SHA-256) with the key named by key; see docs/updates.md.",
+        "about": "ihz.land's update file. payload is signed (ECDSA P-256, SHA-256) with the key named by key; see docs/updates.md.",
         "payload": text,
         "signature": signature,
         "key": key_id,

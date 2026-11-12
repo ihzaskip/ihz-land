@@ -7,14 +7,9 @@ name: mac
 # GitHub release, once ci has published it: signed with the Developer ID and
 # notarized by Apple when the release environment holds the secrets
 # (docs/mac-signing.md), the ad-hoc one until then.
+# ihz.land (this fork): manual only. Releases ship Windows only for now (no Mac
+# signing secrets here); run it by hand to build a Mac app as an artifact.
 on:
-  push:
-    branches: [main, "mac-*"]
-    tags: ["v*"]
-  # Every pull request into main too: a change to shared code (a new command,
-  # event or page) can break the Mac build, and this shows it before it merges.
-  pull_request:
-    branches: [main]
   workflow_dispatch:
     inputs:
       sign:

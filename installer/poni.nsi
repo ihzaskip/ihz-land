@@ -1,6 +1,6 @@
-; Oyenza Studio installer (NSIS 3). Per-user install, no admin rights needed.
+; ihz.land installer (NSIS 3). Per-user install, no admin rights needed.
 ;
-; The name shown to people is "Oyenza Studio" (the 0.1.x versions from 0.1.2 on said "Oyen Poni"); the install folder,
+; The name shown to people is "ihz.land" (the original project said "Oyenza Studio", and its 0.1.x versions "Oyen Poni"); the install folder,
 ; the uninstall key, the Run value and poni.exe keep the name "Poni", so older installs upgrade in place.
 ;
 ; Build (Linux/macOS/Windows with makensis):
@@ -25,7 +25,7 @@ SetCompressor /SOLID lzma
 !endif
 
 Name "${APPNAME}"
-OutFile "${OUTDIR}/Oyenza-Studio-Setup-${VERSION}.exe"
+OutFile "${OUTDIR}/ihz-land-Setup-${VERSION}.exe"
 RequestExecutionLevel user
 InstallDir "$LOCALAPPDATA\Programs\Poni"
 InstallDirRegKey HKCU "Software\Poni" "InstallDir"
@@ -66,7 +66,7 @@ VIAddVersionKey "LegalCopyright" "Copyright (C) 2026 ${PUBLISHER}"
 !macroend
 !define MUI_ICON "../crates/poni/res/poni.ico"
 !define MUI_UNICON "../crates/poni/res/poni.ico"
-; Oyen hanging from the island on the welcome and finish pages, Poni's logo in the header (tools/make_brand.py).
+; Pulo on its island on the welcome and finish pages, its logo in the header (tools/make_brand.py).
 !define MUI_WELCOMEFINISHPAGE_BITMAP "art/nsis-welcome.bmp"
 !define MUI_HEADERIMAGE
 !define MUI_HEADERIMAGE_RIGHT
@@ -126,7 +126,7 @@ Function .onInit
 FunctionEnd
 
 Function .onInstSuccess
-  ; The finish page's "Launch Oyenza Studio now" never shows in silent mode: /reopen starts it.
+  ; The finish page's "Launch ihz.land now" never shows in silent mode: /reopen starts it.
   ${If} ${Silent}
     ${GetParameters} $R0
     ClearErrors

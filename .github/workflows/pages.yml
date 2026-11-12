@@ -1,5 +1,6 @@
-# The website (site/ + docs/brand), published with GitHub Pages on every push
-# to main that touches it. Repo setting: Pages → Source: GitHub Actions.
+# The website (site/ + docs/brand), published with GitHub Pages at
+# https://ihzaskip.github.io/oyenza-studio/ on every push to main that touches
+# it. Repo setting: Pages → Source: GitHub Actions.
 #
 # Every release updates the website too (AGENTS.md). A page that names a version
 # newer than the latest release is held here; the `site` job of that release's
@@ -10,13 +11,14 @@
 # Every deploy also carries latest.json, the signed file every copy of the app
 # reads to learn about a new version (docs/updates.md). It describes GitHub's
 # latest release, so releases update it: ci starts this workflow once a release
-# is published, and the mac workflow again once its DMG is on it.
+# is published. Before the fork's first release there is no file: copies of
+# the app read the 404 as "nothing new".
 name: Website
 
 on:
   push:
     branches: [main]
-    paths: ["site/**", "docs/brand/**", "tools/build_site.sh", "tools/creator_links.py", "tools/ci-site-check.sh", "tools/make_update_feed.py", "crates/poni-core/data/update-keys.txt", ".github/workflows/pages.yml"]
+    paths: ["site/**", "docs/brand/**", "tools/build_site.sh", "tools/ci-site-check.sh", "tools/make_update_feed.py", "crates/poni-core/data/update-keys.txt", ".github/workflows/pages.yml"]
   workflow_dispatch:
     inputs:
       released:
@@ -67,7 +69,7 @@ jobs:
         with:
           name: update-feed
           path: latest.json
-          if-no-files-found: error
+          if-no-files-found: ignore
 
   deploy:
     needs: [gate, feed]
@@ -85,6 +87,8 @@ jobs:
       - uses: actions/checkout@v4
       - run: tools/build_site.sh
       - uses: actions/download-artifact@v4
+        # None before the first release (make_update_feed.py writes no file).
+        continue-on-error: true
         with:
           name: update-feed
           path: _site

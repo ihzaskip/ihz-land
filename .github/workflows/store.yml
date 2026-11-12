@@ -2,10 +2,9 @@ name: store
 
 # The Microsoft Store package (MSIX). Its own workflow so it never collides
 # with release work in ci.yml; it builds poni.exe from the same commit.
+# ihz.land (this fork): manual only. The Microsoft Store package is the original
+# project's listing; this fork ships the installer only.
 on:
-  push:
-    branches: [main, "store-*"]
-    tags: ["v*"]
   workflow_dispatch:
 
 concurrency:

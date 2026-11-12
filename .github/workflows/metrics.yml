@@ -8,17 +8,10 @@
 # GitHub keeps those for 14 days only, so they're recorded from then on.
 name: Download stats
 
+# ihz.land (this fork): manual only. The original project's download stats (its
+# own pages and art), which this fork doesn't publish.
 on:
-  schedule:
-    - cron: "47 * * * *"
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths: ["tools/download_metrics.py", ".github/workflows/metrics.yml"]
-  # A pull request that changes the counting gets a dry run: the page it would
-  # write is kept as an artifact and nothing is pushed.
-  pull_request:
-    paths: ["tools/download_metrics.py", ".github/workflows/metrics.yml"]
 
 permissions:
   contents: write

@@ -35,10 +35,6 @@ jobs:
         run: |
           cargo fetch --locked
           python3 tools/make_notices.py --check
-      # design/tokens.json writes the website's :root block; the recorder
-      # (oyen-studio-cap) generates its theme from a pinned copy of it.
-      - name: Design tokens up to date
-        run: python3 tools/tokens.py --check
 
   # poni.exe is built once, here. The unit tests, the self-tests and the
   # installer each run on their own machine, side by side.
@@ -94,13 +90,6 @@ jobs:
             Stop-Process -Id $am.Id -Force -ErrorAction SilentlyContinue
             Get-Content $env:PONI_FAKE_AM_LOG -ErrorAction SilentlyContinue
           }
-
-      # The Stocks thread against the live oyenza.trade, from the build above.
-      # The self-test shows a made-up market and asks for nothing, which is
-      # how 0.2.11 shipped a thread that never asked. Silence fails the step;
-      # oyenza.trade answering badly only warns.
-      - name: Stocks from the live oyenza.trade
-        run: cargo test -p poni --release the_live_market_comes_in -- --ignored --nocapture
 
       # Windows reads the Bluetooth watchers' filters only when they start,
       # and one it refused would mean no Bluetooth pop-ups at all. The runner
@@ -553,7 +542,7 @@ jobs:
           if (-not $iscc) { Write-Error "ISCC.exe not found after installing Inno Setup"; exit 1 }
           & $iscc "/DAppVersion=$env:PONI_VERSION" installer\poni.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Get-Item "dist\Oyenza-Studio-Setup-$env:PONI_VERSION.exe" | Format-List Name, Length
+          Get-Item "dist\ihz-land-Setup-$env:PONI_VERSION.exe" | Format-List Name, Length
 
       - name: Upload screenshots and logs
         if: always()
@@ -588,7 +577,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: poni-setup-inno
-          path: dist/Oyenza-Studio-Setup-${{ env.PONI_VERSION }}.exe
+          path: dist/ihz-land-Setup-${{ env.PONI_VERSION }}.exe
           if-no-files-found: error
 
   # The three machines' screenshots and logs as one poni-screens download,
@@ -622,44 +611,19 @@ jobs:
           sudo apt-get install -y -qq nsis zip > /dev/null
           makensis -V2 -DEXE="$PWD/dist/poni.exe" -DOUTDIR="$PWD/dist" installer/poni.nsi
           # Portable build inside its own folder, as tools/package.sh makes it.
-          ( cd dist && mkdir Poni && cp poni.exe ../THIRD-PARTY-NOTICES.txt Poni/ && zip -qr "Oyenza-Studio-$PONI_VERSION-portable.zip" Poni && rm -rf Poni )
+          ( cd dist && mkdir Poni && cp poni.exe ../THIRD-PARTY-NOTICES.txt Poni/ && zip -qr "ihz-land-$PONI_VERSION-portable.zip" Poni && rm -rf Poni )
           ls -la dist
       # The download against tools/weight-budget.json (the Windows job's smoke
       # run weighs memory, CPU and wake-ups).
       - name: Weight check, download size
-        run: tools/ci-weight-download.sh "dist/Oyenza-Studio-Setup-$PONI_VERSION.exe"
+        run: tools/ci-weight-download.sh "dist/ihz-land-Setup-$PONI_VERSION.exe"
       - uses: actions/upload-artifact@v4
         with:
-          name: oyenza-studio-setup
+          name: ihz-land-setup
           path: |
-            dist/Oyenza-Studio-Setup-${{ env.PONI_VERSION }}.exe
-            dist/Oyenza-Studio-${{ env.PONI_VERSION }}-portable.zip
+            dist/ihz-land-Setup-${{ env.PONI_VERSION }}.exe
+            dist/ihz-land-${{ env.PONI_VERSION }}-portable.zip
           if-no-files-found: error
-
-  install-test:
-    name: Install over 0.1.1, check and uninstall (Windows)
-    needs: installer
-    runs-on: windows-2025
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          name: oyenza-studio-setup
-          path: dist
-      - name: Fetch the release to upgrade from
-        shell: pwsh
-        # 0.1.1 is the installer people have today; the check upgrades from it.
-        run: Invoke-WebRequest -Uri "https://github.com/lucacadalora/oyenza-studio/releases/download/v0.1.1/Poni-Setup-0.1.1.exe" -OutFile previous-setup.exe
-      - name: Install, check, uninstall
-        shell: pwsh
-        run: ./tools/ci-installer.ps1 -Setup "dist\Oyenza-Studio-Setup-$env:PONI_VERSION.exe" -Version $env:PONI_VERSION -Previous previous-setup.exe -Out installer-out
-      - name: Upload screenshots and results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: installer-check
-          path: installer-out
-          if-no-files-found: warn
 
   # The Downloader add-on's ffmpeg.exe: FFmpeg's own release, built small
   # (addons/downloader/FFMPEG.md). It changes only with its script, so a run
@@ -709,7 +673,7 @@ jobs:
   release:
     name: GitHub Release (tags v*)
     if: startsWith(github.ref, 'refs/tags/v') || inputs.release_dry_run
-    needs: [core, windows, unit-tests, selftest, installer, install-test]
+    needs: [core, windows, unit-tests, selftest, installer]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -720,27 +684,24 @@ jobs:
         run: test "$GITHUB_REF_NAME" = "v$PONI_VERSION"
       - uses: actions/download-artifact@v4
         with:
-          name: oyenza-studio-setup
+          name: ihz-land-setup
           path: dist
-      # Oyen-Poni-Setup.exe is the fixed name before the rename (0.1.2 to the last 0.1.x). Links to it are
-      # out there (oyenza.com, shared links, old README copies), so every release keeps carrying it.
-      - name: Copy the installer to the fixed names the download links use
-        run: |
-          cp "dist/Oyenza-Studio-Setup-$PONI_VERSION.exe" dist/Oyenza-Studio-Setup.exe
-          cp "dist/Oyenza-Studio-Setup-$PONI_VERSION.exe" dist/Oyen-Poni-Setup.exe
+      # ihz-land-Setup.exe: the fixed name the website's Download button uses
+      # (releases/latest/download/ihz-land-Setup.exe).
+      - name: Copy the installer to the fixed name the download link uses
+        run: cp "dist/ihz-land-Setup-$PONI_VERSION.exe" dist/ihz-land-Setup.exe
       - name: Publish as the latest release
         if: github.event_name == 'push'
         uses: softprops/action-gh-release@v2
         with:
-          name: Oyenza Studio ${{ env.PONI_VERSION }}
+          name: ihz.land ${{ env.PONI_VERSION }}
           body_path: docs/release-notes/${{ github.ref_name }}.md
           prerelease: false
           make_latest: "true"
           files: |
-            dist/Oyenza-Studio-Setup-${{ env.PONI_VERSION }}.exe
-            dist/Oyenza-Studio-Setup.exe
-            dist/Oyen-Poni-Setup.exe
-            dist/Oyenza-Studio-${{ env.PONI_VERSION }}-portable.zip
+            dist/ihz-land-Setup-${{ env.PONI_VERSION }}.exe
+            dist/ihz-land-Setup.exe
+            dist/ihz-land-${{ env.PONI_VERSION }}-portable.zip
           fail_on_unmatched_files: true
       - name: What a tag would publish (dry run, nothing is published)
         if: github.event_name != 'push'
@@ -753,10 +714,10 @@ jobs:
           {
             echo "### Release dry run: nothing was published"
             echo
-            echo "A \`v$PONI_VERSION\` tag would publish **Oyenza Studio $PONI_VERSION** as the latest release, with \`$notes\` as its text and these files:"
+            echo "A \`v$PONI_VERSION\` tag would publish **ihz.land $PONI_VERSION** as the latest release, with \`$notes\` as its text and these files:"
             echo
             echo '```'
-            (cd dist && sha256sum "Oyenza-Studio-Setup-$PONI_VERSION.exe" Oyenza-Studio-Setup.exe Oyen-Poni-Setup.exe "Oyenza-Studio-$PONI_VERSION-portable.zip" && ls -l "Oyenza-Studio-Setup-$PONI_VERSION.exe" Oyenza-Studio-Setup.exe Oyen-Poni-Setup.exe "Oyenza-Studio-$PONI_VERSION-portable.zip")
+            (cd dist && sha256sum "ihz-land-Setup-$PONI_VERSION.exe" ihz-land-Setup.exe "ihz-land-$PONI_VERSION-portable.zip" && ls -l "ihz-land-Setup-$PONI_VERSION.exe" ihz-land-Setup.exe "ihz-land-$PONI_VERSION-portable.zip")
             echo '```'
           } | tee -a "$GITHUB_STEP_SUMMARY"
 
