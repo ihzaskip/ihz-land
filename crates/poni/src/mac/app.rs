@@ -1776,6 +1776,7 @@ impl App {
             }
             AppEvent::Located(found) => self.on_located(found),
             AppEvent::Cities { file, got } => pages::prayer::cities_came(&mut self.st, file, got),
+            AppEvent::LyricsSearch { text, result } => pages::media::search_came(&mut self.st, &text, result),
             AppEvent::Usage(ev) => self.on_usage(ev),
             AppEvent::AdzanEnded => self.adzan_ended(),
             AppEvent::Log(s) => pinfo!("{s}"),
@@ -2935,6 +2936,22 @@ impl App {
                 Command::Pair(_) => {}
                 Command::Oyenza(c) => self.oyenza(c),
                 Command::GetCities(file) => services::cities::fetch(file, self.sink.clone()),
+                Command::Lyrics(c) => {
+                    use crate::commands::LyricsCmd;
+                    if let (Some(l), Some(m)) = (self.lyrics.as_ref(), self.st.media.clone()) {
+                        match c {
+                            LyricsCmd::Search(text) => l.search(text),
+                            LyricsCmd::Pin(record) => {
+                                self.st.lyrics = LyricsState { track_key: m.track_key.clone(), status: LyricsStatus::Loading, ..Default::default() };
+                                l.pin(&m, record);
+                            }
+                            LyricsCmd::Unpin => {
+                                self.st.lyrics = LyricsState { track_key: m.track_key.clone(), status: LyricsStatus::Loading, ..Default::default() };
+                                l.unpin(&m);
+                            }
+                        }
+                    }
+                }
                 Command::Download(c) => self.download_cmd(c),
                 // Notifications is a Windows add-on: a Mac can't read other apps' notifications.
                 Command::Notify(_) => {}

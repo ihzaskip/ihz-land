@@ -99,6 +99,21 @@ pub fn search_url(q: &TrackQuery) -> String {
     with_query(&format!("{API_BASE}/search"), &[("track_name", &q.title), ("artist_name", &q.artist)])
 }
 
+/// `/api/search?q=` — the words typed into the Music page's lyrics picker,
+/// matched against title, artist and album.
+pub fn search_text_url(text: &str) -> String {
+    with_query(&format!("{API_BASE}/search"), &[("q", text.trim())])
+}
+
+/// Most rows the picker lists.
+pub const PICK_MAX: usize = 20;
+
+/// The search hits worth offering in the picker: lyrics or a definite
+/// "instrumental", stubs left out, in LRCLIB's order, at most [`PICK_MAX`].
+pub fn pick_list(records: Vec<LrclibRecord>) -> Vec<LrclibRecord> {
+    records.into_iter().filter(|r| r.instrumental || r.has_full_synced() || r.has_full_plain()).take(PICK_MAX).collect()
+}
+
 pub fn parse_get(json: &str) -> Result<LrclibRecord, String> {
     serde_json::from_str(json).map_err(|e| e.to_string())
 }
@@ -696,6 +711,19 @@ mod tests {
         let best = best_match(&recs, &q("Paper Boats", "The Lanterns", "", 201)).unwrap();
         assert_eq!(best.id, 2);
         assert!(best_match(&recs, &q("Nope", "Nobody", "", 0)).is_none());
+    }
+
+    #[test]
+    fn picker_lists_real_lyrics_only() {
+        assert_eq!(search_text_url("  The Lanterns Paper Boats "), "https://lrclib.net/api/search?q=The%20Lanterns%20Paper%20Boats");
+        let json = r#"[
+            {"id":1,"trackName":"Paper Boats","artistName":"The Lanterns","plainLyrics":"Paper Boats"},
+            {"id":2,"trackName":"Paper Boats","artistName":"The Lanterns","plainLyrics":"a\nb\nc\nd"},
+            {"id":3,"trackName":"Paper Boats (Live)","artistName":"The Lanterns","instrumental":true},
+            {"id":4,"trackName":"Paper Boats","artistName":"The Lanterns","syncedLyrics":"[00:01.00]a\n[00:02.00]b\n[00:03.00]c\n[00:04.00]d"}
+        ]"#;
+        let ids: Vec<i64> = pick_list(parse_search(json).unwrap()).iter().map(|r| r.id).collect();
+        assert_eq!(ids, vec![2, 3, 4]);
     }
 
     #[test]

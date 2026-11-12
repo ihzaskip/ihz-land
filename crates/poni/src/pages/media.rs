@@ -18,15 +18,16 @@
 //! Animation state that has no home in `PageUiState` (velocities, the last
 //! frame time, a text-measurement cache) lives in a UI-thread `thread_local`.
 
-use crate::commands::{Command, MediaCmd};
+use crate::commands::{Command, LyricsCmd, MediaCmd};
 use crate::gfx::{ts, TextStyle, Weight};
 use crate::icons::Icon;
-use crate::state::{AppState, LyricsState, LyricsStatus, MediaSession, PageUiState};
-use crate::ui::{wid, wid_n, Ui, WidgetId};
+use crate::state::{AppState, LyricPick, LyricsState, LyricsStatus, MediaSession, PageUiState};
+use crate::ui::{wid, wid_n, PillStyle, Ui, WidgetId, PILL_GAP, PILL_SMALL};
 use poni_core::addons;
 use poni_core::datetime::fmt_duration;
 use poni_core::geom::{lerp, palette, Color, Point, Rect};
 use poni_core::lrc::Lyrics;
+use poni_core::lrclib::{self, LrclibRecord, TrackQuery};
 use poni_core::nowplaying::lyrics_lead_s;
 use poni_core::romanize::Ruby;
 use poni_core::timeline::LyricClock;
@@ -316,6 +317,13 @@ pub fn height(st: &AppState) -> f32 {
 }
 
 pub fn draw(ui: &mut Ui, st: &mut AppState, area: Rect) {
+    // The lyrics picker takes the page while it's open for the playing song.
+    if matches!((&st.lyric_pick, &st.media), (Some(p), Some(m)) if p.track_key == m.track_key) {
+        let h = height(st);
+        picker(ui, st, Rect::new(area.x, area.y, area.w, h));
+        return;
+    }
+    st.lyric_pick = None;
     if crate::pill::music::draw(ui, st, area) {
         return;
     }
@@ -446,6 +454,7 @@ fn draw_session(ui: &mut Ui, st: &mut AppState, area: Rect, a: &mut Anim, fr: &F
     }
 
     // Lyrics.
+    let mut open_pick = false;
     let mut open_credit = false;
     let mut synced_shown = false;
     let mut get_ja_readings = false;
@@ -460,6 +469,7 @@ fn draw_session(ui: &mut Ui, st: &mut AppState, area: Rect, a: &mut Anim, fr: &F
         synced_shown = out.synced;
         open_credit = out.open_credit;
         get_ja_readings = out.get_ja_readings;
+        open_pick = out.open_picker;
     }
 
     // Real transitions (a lyric scroll catching up, a press) get full-rate
@@ -483,6 +493,9 @@ fn draw_session(ui: &mut Ui, st: &mut AppState, area: Rect, a: &mut Anim, fr: &F
     if get_ja_readings {
         st.settings.set_addon(addons::JAPANESE_READINGS.id, true);
         st.cmd(Command::SaveSettings);
+    }
+    if open_pick {
+        open_picker(ui, st);
     }
 }
 
@@ -607,6 +620,8 @@ pub(crate) struct LyricsOut {
     pub(crate) open_credit: bool,
     /// The offer was clicked: switch the Japanese readings add-on on.
     pub(crate) get_ja_readings: bool,
+    /// "Cari lirik" was clicked: open the picker ([`open_picker`]).
+    pub(crate) open_picker: bool,
 }
 
 enum View<'a> {
@@ -703,9 +718,156 @@ pub(crate) fn draw_lyrics(
     if let Some((line, click)) = &ctx.offer {
         out.get_ja_readings = draw_offer(ui, col, line, *click);
     } else if a.credit_k > 0.0 {
-        out.open_credit = draw_credit(ui, col, &credit, smoothstep(a.credit_k));
+        let k = smoothstep(a.credit_k);
+        let (pick_w, clicked) = draw_pick_button(ui, col, k);
+        out.open_picker = clicked;
+        let credit_col = Rect::new(col.x, col.y, (col.w - pick_w - 8.0).max(0.0), col.h);
+        out.open_credit = draw_credit(ui, credit_col, &credit, k);
     }
     out
+}
+
+/// "Cari lirik" at the right end of the credit's line, faded in with it;
+/// returns its width and whether it was clicked.
+fn draw_pick_button(ui: &mut Ui, col: Rect, alpha: f32) -> (f32, bool) {
+    let ts = TextStyle::caption();
+    let tw = ui.c.measure(PICK_OPEN, &ts, col.w).0.ceil() + 2.0;
+    let r = Rect::new(col.right() - tw, col.bottom() - CREDIT_H, tw, CREDIT_H);
+    let resp = ui.button(wid("media_lyrics_pick"), r.inset(-6.0, -5.0));
+    let color = if resp.hovered { palette::TEXT } else { palette::TEXT_DIM };
+    ui.c.with_alpha(alpha, |c| c.text(PICK_OPEN, r, &ts.color(color).right()));
+    (tw, resp.clicked)
+}
+
+// ---------------------------------------------------------------- lyrics picker
+
+/// Opens the picker, in the credit's line.
+const PICK_OPEN: &str = "Cari lirik";
+const PICK_SEARCH_H: f32 = 32.0;
+const PICK_ROW_H: f32 = 24.0;
+const PICK_FIELD: &str = "media.lyric-search";
+
+/// Open the picker for the playing song, its box filled with the artist and
+/// title the lookup reads, and search for them.
+pub(crate) fn open_picker(ui: &mut Ui, st: &mut AppState) {
+    let Some(m) = &st.media else { return };
+    let q = lrclib::normalize_query(&TrackQuery { title: m.title.clone(), artist: m.artist.clone(), ..Default::default() });
+    let query = format!("{} {}", q.artist, q.title).trim().to_string();
+    ui.focus_text(wid(PICK_FIELD), query.chars().count());
+    let mut p = LyricPick { track_key: m.track_key.clone(), query, ..Default::default() };
+    search(st, &mut p);
+    st.lyric_pick = Some(p);
+}
+
+fn search(st: &mut AppState, p: &mut LyricPick) {
+    let text = p.query.trim().to_string();
+    if text.is_empty() {
+        return;
+    }
+    p.asked = text.clone();
+    p.results = None;
+    p.scroll = 0;
+    st.cmd(Command::Lyrics(LyricsCmd::Search(text)));
+}
+
+/// The picker's search came back.
+pub fn search_came(st: &mut AppState, text: &str, result: Result<Vec<LrclibRecord>, String>) {
+    if let Some(p) = st.lyric_pick.as_mut().filter(|p| p.asked == text) {
+        p.results = Some(result);
+        p.scroll = 0;
+    }
+}
+
+/// The search row (box, Tanpa lirik, Otomatis, Tutup), then LRCLIB's hits:
+/// a click shows that one for this song from now on.
+fn picker(ui: &mut Ui, st: &mut AppState, area: Rect) {
+    let accent = st.media_accent();
+    let Some(mut p) = st.lyric_pick.take() else { return };
+    let y = area.y + (PICK_SEARCH_H - PILL_SMALL) / 2.0;
+    let close_w = ui.pill_width("Tutup", false, true);
+    let close = Rect::new(area.right() - close_w, y, close_w, PILL_SMALL);
+    let auto_w = ui.pill_width("Otomatis", false, true);
+    let auto = Rect::new(close.x - PILL_GAP - auto_w, y, auto_w, PILL_SMALL);
+    let none_w = ui.pill_width("Tanpa lirik", false, true);
+    let none = Rect::new(auto.x - PILL_GAP - none_w, y, none_w, PILL_SMALL);
+    let input = Rect::new(area.x, area.y, (none.x - 12.0 - area.x).max(0.0), PICK_SEARCH_H);
+    let resp = ui.text_input_row(wid(PICK_FIELD), input, &mut p.query, "Judul dan artis", 80, accent, Some(Icon::Lyrics));
+    if resp.submitted {
+        search(st, &mut p);
+    }
+    let mut chosen: Option<LyricsCmd> = None;
+    if ui.pill(wid("media.lyric-none"), none, "Tanpa lirik", None, PillStyle::Utility).clicked {
+        chosen = Some(LyricsCmd::Pin(None));
+    }
+    if ui.pill(wid("media.lyric-auto"), auto, "Otomatis", None, PillStyle::Utility).clicked {
+        chosen = Some(LyricsCmd::Unpin);
+    }
+    let closing = ui.pill(wid("media.lyric-close"), close, "Tutup", None, PillStyle::Utility).clicked || resp.cancelled;
+
+    let top = area.y + PICK_SEARCH_H + 8.0;
+    let list = Rect::new(area.x, top, area.w, (area.bottom() - top).max(0.0));
+    let line = Rect::new(list.x, list.y, list.w, 18.0);
+    let note = TextStyle::footnote().color(palette::TEXT_DIM);
+    match &p.results {
+        None if p.asked.is_empty() => ui.c.text("Tekan Enter untuk mencari di LRCLIB", line, &note),
+        None => ui.c.text("Mencari\u{2026}", line, &note),
+        Some(Err(e)) => ui.c.text(e, line, &note),
+        Some(Ok(v)) if v.is_empty() => ui.c.text("Tidak ada lirik untuk pencarian ini", line, &note),
+        Some(Ok(v)) => {
+            let rows = ((list.h / PICK_ROW_H).floor() as usize).max(1);
+            let max = v.len().saturating_sub(rows);
+            let notches = ui.wheel_in(list);
+            if notches != 0.0 {
+                p.scroll = (p.scroll as f32 - notches.signum()).clamp(0.0, max as f32) as usize;
+            }
+            p.scroll = p.scroll.min(max);
+            for (i, r) in v.iter().enumerate().skip(p.scroll).take(rows) {
+                let row = Rect::new(list.x, list.y + (i - p.scroll) as f32 * PICK_ROW_H, list.w, PICK_ROW_H);
+                if pick_row(ui, i, row, r) {
+                    chosen = Some(LyricsCmd::Pin(Some(r.clone())));
+                }
+            }
+        }
+    }
+    if chosen.is_none() && !closing {
+        st.lyric_pick = Some(p);
+        return;
+    }
+    if let Some(c) = chosen {
+        st.cmd(Command::Lyrics(c));
+    }
+    st.cmd(Command::BlurText);
+}
+
+/// One hit: title and artist, then its length and whether it's synced.
+fn pick_row(ui: &mut Ui, i: usize, row: Rect, r: &LrclibRecord) -> bool {
+    let hit = Rect::new(row.x - 8.0, row.y, row.w + 8.0, row.h);
+    let b = ui.button(wid_n("media.lyric-hit", i as u64), hit);
+    if b.hovered || b.pressed {
+        ui.c.fill_rrect(hit, 8.0, Color::white(if b.pressed { 0.10 } else { 0.06 }));
+    }
+    let kind = if r.instrumental {
+        "Instrumental"
+    } else if r.has_full_synced() {
+        "Synced"
+    } else {
+        "Plain"
+    };
+    let meta = match r.duration.filter(|d| *d > 0.0) {
+        Some(d) => format!("{} \u{b7} {kind}", fmt_duration(d)),
+        None => kind.to_string(),
+    };
+    let note = TextStyle::footnote().tabular().color(palette::TEXT_DIM);
+    let mw = ui.c.measure(&meta, &note, row.w).0.ceil() + 2.0;
+    ui.c.text(&meta, Rect::new(row.right() - mw, row.y, mw, row.h), &note.right());
+    let room = (row.w - mw - 12.0).max(0.0);
+    let title = TextStyle::body();
+    let tw = (ui.c.measure(&r.track_name, &title, 1000.0).0.ceil() + 2.0).min(room);
+    ui.c.text(&r.track_name, Rect::new(row.x, row.y, tw, row.h), &title);
+    if tw + 40.0 < room {
+        ui.c.text(&r.artist_name, Rect::new(row.x + tw + 8.0, row.y, room - tw - 8.0, row.h), &TextStyle::footnote().color(palette::TEXT_DIM));
+    }
+    b.clicked
 }
 
 /// Centred icon + message for loading / missing lyrics.

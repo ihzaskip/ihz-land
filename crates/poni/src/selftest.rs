@@ -915,6 +915,8 @@ enum Scene {
     JaOffer,
     /// Music: ...and Japanese readings coming in.
     JaGetting,
+    /// Music: the lyrics picker, its search answered.
+    LyricPicker,
     /// The idle pill in the status bar look (the Pill theme's; the other
     /// themes show the clock).
     IdleStatus,
@@ -1031,6 +1033,32 @@ enum Scene {
 }
 
 /// A later release than this build, as the update file describes one.
+/// The lyrics picker for the sample song: made-up LRCLIB hits (no real lyrics).
+fn fake_lyric_pick(track_key: &str) -> crate::state::LyricPick {
+    use poni_core::lrclib::LrclibRecord;
+    let synced = "[00:01.00]one\n[00:02.00]two\n[00:03.00]three\n[00:04.00]four";
+    let plain = "one\ntwo\nthree\nfour";
+    let hit = |id, title: &str, artist: &str, duration, synced_lyrics: Option<&str>, instrumental| LrclibRecord {
+        id,
+        track_name: title.into(),
+        artist_name: artist.into(),
+        album_name: None,
+        duration: Some(duration),
+        instrumental,
+        plain_lyrics: (!instrumental).then(|| plain.into()),
+        synced_lyrics: synced_lyrics.map(Into::into),
+    };
+    let results = vec![
+        hit(1, TITLE, ARTIST, 201.0, Some(synced), false),
+        hit(2, "Paper Boats (Acoustic)", ARTIST, 188.0, None, false),
+        hit(3, TITLE, "Harbor Lights feat. The Lanterns", 214.0, Some(synced), false),
+        hit(4, "Paper Boats (Instrumental)", ARTIST, 201.0, None, true),
+        hit(5, "Paper Boats Live", ARTIST, 245.0, None, false),
+    ];
+    let query = format!("{ARTIST} {TITLE}");
+    crate::state::LyricPick { track_key: track_key.into(), asked: query.clone(), query, results: Some(Ok(results)), scroll: 0 }
+}
+
 fn fake_release() -> poni_core::update::Release {
     let mut parts: Vec<u64> = crate::version::VERSION.split('.').filter_map(|p| p.parse().ok()).collect();
     if let Some(last) = parts.last_mut() {
@@ -1122,7 +1150,7 @@ const SAMPLE_SCRIPT: &str = "Hi everyone, this one takes two minutes. Today I'll
 Drop any file on the island and it waits on the Shelf. Press the phone button, scan the code, and the file is on your phone. \
 No cable, no account, nothing to install on the phone.\n\nThat's it. Thanks for watching.";
 
-const SCENES: [Scene; 110] = [
+const SCENES: [Scene; 111] = [
     Scene::IdleClock,
     Scene::IdleEyes,
     Scene::Media,
@@ -1283,6 +1311,8 @@ const SCENES: [Scene; 110] = [
     Scene::CaffeineAdd,
     Scene::CaffeineEmpty,
     Scene::CaffeineLate,
+    // Music: the lyrics picker with LRCLIB's (made-up) hits.
+    Scene::LyricPicker,
 ];
 
 impl Scene {
@@ -1335,6 +1365,7 @@ impl Scene {
             Scene::SystemGamesAllow => "page-system-games-allow".into(),
             Scene::JaOffer => "page-media-ja-offer".into(),
             Scene::JaGetting => "page-media-ja-getting".into(),
+            Scene::LyricPicker => "page-media-lyric-picker".into(),
             Scene::IdleStatus => "idle-status".into(),
             Scene::MediaLyric => "media-lyric".into(),
             Scene::LowBatteryHud => "low-battery-hud".into(),
@@ -1412,7 +1443,7 @@ impl Scene {
             | Scene::SystemPowerEstimate => Some(PageKind::System),
             Scene::ShelfPairing | Scene::ShelfPaired | Scene::ShelfPairedPhones => Some(PageKind::Shelf),
             Scene::AddonsDownloading | Scene::AddonsOn | Scene::AddonsOffline | Scene::AddonsFailed => Some(PageKind::Addons),
-            Scene::JaOffer | Scene::JaGetting => Some(PageKind::Media),
+            Scene::JaOffer | Scene::JaGetting | Scene::LyricPicker => Some(PageKind::Media),
             Scene::PrayerPicker | Scene::PrayerPickerWorld | Scene::PrayerWorld | Scene::PrayerMuhammadiyah | Scene::PrayerPickerFollow => Some(PageKind::Prayer),
             Scene::ScriptReading | Scene::ScriptRecorder => Some(PageKind::Script),
             Scene::RecordLive => Some(PageKind::Record),
@@ -3272,6 +3303,7 @@ impl SelfTest {
         if scene.media_playing() {
             st.lyrics.wants_ja_readings = self.lyrics.wants_ja_readings || matches!(scene, Scene::JaOffer | Scene::JaGetting);
         }
+        st.lyric_pick = (scene == Scene::LyricPicker).then(|| fake_lyric_pick(&self.track_key));
         seed_prayer(st, scene, until);
         // The Script page: empty, or partway through the sample script.
         st.script = poni_core::script::Reader::default();
