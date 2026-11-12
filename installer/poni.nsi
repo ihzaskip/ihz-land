@@ -12,7 +12,7 @@ Target amd64-unicode
 SetCompressor /SOLID lzma
 
 !define APPNAME "ihz.land"
-!define VERSION "0.2.30"
+!define VERSION "0.2.31"
 !define PUBLISHER "ihz.land"
 ; LICENSE's copyright holder.
 !define COPYRIGHT "Jatevo Labs"
@@ -33,7 +33,7 @@ InstallDir "$LOCALAPPDATA\Programs\Poni"
 InstallDirRegKey HKCU "Software\Poni" "InstallDir"
 BrandingText "${APPNAME} ${VERSION}"
 
-VIProductVersion "0.2.30.0"
+VIProductVersion "0.2.31.0"
 VIAddVersionKey "ProductName" "${APPNAME}"
 VIAddVersionKey "CompanyName" "${PUBLISHER}"
 VIAddVersionKey "FileDescription" "ihz.land installer"
