@@ -141,6 +141,9 @@ pub enum NoticeAction {
     /// Open the app another app's notification came from (its
     /// AppUserModelID; Notifications). The island stays closed.
     OpenApp(String),
+    /// Open a web page (the original project's new release). The island
+    /// stays closed.
+    OpenUrl(String),
 }
 
 /// A one-click action shown as a small pill inside a notice (doesn't expand).

@@ -39,6 +39,9 @@ pub enum UpdateEvent {
     /// The new version is on disk and checked, or why not: its Setup on
     /// Windows, its app (out of the DMG) on a Mac.
     Downloaded(Result<std::path::PathBuf, String>),
+    /// The original project's latest release (this is a fork), read on the
+    /// same look as the update file, or why it couldn't be.
+    Upstream(Result<update::Upstream, String>),
 }
 
 /// A job for the add-on thread: read the file, answer with `AppEvent::Update`.
@@ -50,7 +53,21 @@ pub fn check_job(sink: EventSink) -> Job {
             Err(e) => crate::pinfo!("updates: couldn't read the update file ({e})"),
         }
         sink.send(AppEvent::Update(UpdateEvent::Checked(r)));
+        // The same hourly look also asks what the original project released.
+        let up = client.map_err(str::to_string).and_then(upstream);
+        if let Err(e) = &up {
+            crate::pinfo!("updates: couldn't read the original project's release ({e})");
+        }
+        sink.send(AppEvent::Update(UpdateEvent::Upstream(up)));
     })
+}
+
+fn upstream(client: &Client) -> Result<update::Upstream, String> {
+    let (status, body) = client.get_bytes(update::UPSTREAM_URL, TIMEOUT, update::MAX_UPSTREAM_BYTES, |_| {}).map_err(|e| e.to_string())?;
+    if status != 200 {
+        return Err(format!("HTTP {status}"));
+    }
+    update::parse_upstream(std::str::from_utf8(&body).map_err(|_| "not text".to_string())?)
 }
 
 fn check(client: &Client) -> Result<Release, String> {
@@ -402,7 +419,7 @@ mod tests {
         assert!(!verify(signed.payload.as_bytes(), &sig, &signed.key));
         assert!(verify(signed.payload.as_bytes(), &signed.signature, &signed.key));
         // The spare key didn't sign it.
-        let spare = update::trusted_key("f835f77c60bd2b7f").unwrap();
+        let spare = update::trusted_key("117a9196027ec946").unwrap();
         assert!(!verify(signed.payload.as_bytes(), &signed.signature, &spare));
     }
 }

@@ -1,4 +1,4 @@
-//! New versions (docs/updates.md): https://studio.oyenza.com/latest.json says
+//! New versions (docs/updates.md): this fork's own latest.json (FEED_URL) says
 //! which release is the latest, signed with a key from data/update-keys.txt.
 //! The app checks the signature with the system's own crypto
 //! (`services::update`); this module reads the file, refuses anything that
@@ -8,10 +8,10 @@
 use serde::{Deserialize, Serialize};
 
 /// Where every copy looks.
-pub const FEED_URL: &str = "https://studio.oyenza.com/latest.json";
+pub const FEED_URL: &str = "https://ihzaskip.github.io/oyenza-studio/latest.json";
 /// Downloads only ever come from this repository's releases.
-const DOWNLOADS: &str = "https://github.com/lucacadalora/oyenza-studio/releases/download/v";
-const RELEASE_PAGE: &str = "https://github.com/lucacadalora/oyenza-studio/releases/tag/v";
+const DOWNLOADS: &str = "https://github.com/ihzaskip/oyenza-studio/releases/download/v";
+const RELEASE_PAGE: &str = "https://github.com/ihzaskip/oyenza-studio/releases/tag/v";
 /// The file's layout this version reads. A file with a newer one is ignored
 /// (a later version of the app will read it).
 pub const SCHEMA: u64 = 1;
@@ -183,6 +183,50 @@ pub fn newer(a: &str, b: &str) -> bool {
     }
 }
 
+/// The original project this fork follows. Its latest release is only
+/// told about on the island, so the fork's owner can decide to sync it in;
+/// nothing from it is ever downloaded or installed, so it needs no signature.
+pub const UPSTREAM_URL: &str = "https://api.github.com/repos/lucacadalora/oyenza-studio/releases/latest";
+const UPSTREAM_PAGE: &str = "https://github.com/lucacadalora/oyenza-studio/releases/tag/v";
+/// GitHub's answer for one release is a few KB, its notes included.
+pub const MAX_UPSTREAM_BYTES: u64 = 256 * 1024;
+
+/// The original project's latest release, as the island tells it.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct Upstream {
+    pub version: String,
+    /// The first bold line of its notes.
+    pub headline: String,
+    /// Its release page.
+    pub notes: String,
+}
+
+/// Read GitHub's `releases/latest` answer for the original project. A draft,
+/// a pre-release or a tag that isn't a version is refused.
+pub fn parse_upstream(text: &str) -> Result<Upstream, String> {
+    #[derive(Deserialize)]
+    struct Gh {
+        tag_name: String,
+        #[serde(default)]
+        body: Option<String>,
+        #[serde(default)]
+        draft: bool,
+        #[serde(default)]
+        prerelease: bool,
+    }
+    let r: Gh = serde_json::from_str(text).map_err(|e| format!("not a GitHub release ({e})"))?;
+    if r.draft || r.prerelease {
+        return Err("a draft or pre-release".into());
+    }
+    let version = r.tag_name.strip_prefix('v').unwrap_or(&r.tag_name).to_string();
+    if parts(&version).is_none() {
+        return Err(format!("\"{:.20}\" isn't a version", r.tag_name));
+    }
+    let body = r.body.unwrap_or_default();
+    let bold = body.split("**").nth(1).unwrap_or_default().trim_end_matches('.');
+    Ok(Upstream { headline: headline(bold, &version), notes: format!("{UPSTREAM_PAGE}{version}"), version })
+}
+
 /// What the app remembers between starts (`update.json` in its data folder).
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
@@ -199,6 +243,10 @@ pub struct Memory {
     /// the app opens next time. Cleared as it runs, so a Setup that fails
     /// doesn't keep the app from opening.
     pub install_on_start: String,
+    /// The original project's latest release (`UPSTREAM_URL`), last read.
+    pub upstream: Option<Upstream>,
+    /// The original project's version the island has told about: once each.
+    pub upstream_told: String,
 }
 
 impl Memory {
@@ -218,6 +266,12 @@ impl Memory {
     /// Should the island tell about this offer? Once per version.
     pub fn should_announce(&self, running: &str, mac: bool) -> bool {
         self.offer(running, mac).is_some_and(|r| r.version != self.announced)
+    }
+
+    /// The original project's release to tell about: later than `running`
+    /// and not told yet.
+    pub fn upstream_to_tell(&self, running: &str) -> Option<&Upstream> {
+        self.upstream.as_ref().filter(|u| newer(&u.version, running) && u.version != self.upstream_told)
     }
 
     /// The version running now is later than the one that ran before: the
@@ -273,20 +327,37 @@ pub(crate) fn base64(s: &str) -> Option<Vec<u8>> {
 mod tests {
     use super::*;
 
+    #[test]
+    fn the_original_projects_release_reads() {
+        let gh = r#"{"tag_name":"v0.2.30","name":"Oyenza Studio 0.2.30","draft":false,"prerelease":false,"body":"**Caffeine: your last call for coffee.** More text."}"#;
+        let u = parse_upstream(gh).unwrap();
+        assert_eq!(u.version, "0.2.30");
+        assert_eq!(u.headline, "Caffeine: your last call for coffee");
+        assert_eq!(u.notes, "https://github.com/lucacadalora/oyenza-studio/releases/tag/v0.2.30");
+        assert_eq!(parse_upstream(r#"{"tag_name":"v0.3.0","body":"plain"}"#).unwrap().headline, "Oyenza Studio 0.3.0");
+        assert!(parse_upstream(&gh.replace("\"prerelease\":false", "\"prerelease\":true")).is_err());
+        assert!(parse_upstream(r#"{"tag_name":"addon-ja-1"}"#).is_err());
+        let mut m = Memory { upstream: Some(u), ..Memory::default() };
+        assert!(m.upstream_to_tell("0.2.29").is_some());
+        assert!(m.upstream_to_tell("0.2.30").is_none(), "already synced");
+        m.upstream_told = "0.2.30".into();
+        assert!(m.upstream_to_tell("0.2.29").is_none(), "told once");
+    }
+
     const V: &str = "0.2.3";
     const SHA: &str = "8f30919c3c13e7074ae0381d9b478e1ef5fb802476b637f5febefe949d26e26b";
 
     fn payload(version: &str, extra: &str) -> String {
         format!(
-            r#"{{"schema":1,"version":"{version}","date":"2026-10-25","headline":"Sing along from the closed island","notes":"https://github.com/lucacadalora/oyenza-studio/releases/tag/v{version}","windows":{{"url":"https://github.com/lucacadalora/oyenza-studio/releases/download/v{version}/Oyenza-Studio-Setup-{version}.exe","size":2457657,"sha256":"{SHA}"}}{extra}}}"#
+            r#"{{"schema":1,"version":"{version}","date":"2026-10-25","headline":"Sing along from the closed island","notes":"https://github.com/ihzaskip/oyenza-studio/releases/tag/v{version}","windows":{{"url":"https://github.com/ihzaskip/oyenza-studio/releases/download/v{version}/Oyenza-Studio-Setup-{version}.exe","size":2457657,"sha256":"{SHA}"}}{extra}}}"#
         )
     }
 
     #[test]
     fn the_built_in_keys_are_trusted_and_others_are_not() {
-        let k = trusted_key("4cb3280eaea65b50").expect("signing key");
+        let k = trusted_key("c411e2a51c85c9cc").expect("signing key");
         assert_eq!(k[0], 4);
-        assert!(trusted_key("f835f77c60bd2b7f").is_some(), "spare key");
+        assert!(trusted_key("117a9196027ec946").is_some(), "spare key");
         assert_eq!(trusted_key("0000000000000000"), None);
         assert_eq!(trusted_key(""), None);
     }
@@ -294,11 +365,11 @@ mod tests {
     #[test]
     fn the_file_reads_its_signature_and_key() {
         let sig = "A".repeat(85) + "Q==";
-        let file = format!(r#"{{"about":"…","payload":"{{}}","signature":"{sig}","key":"4cb3280eaea65b50"}}"#);
+        let file = format!(r#"{{"about":"…","payload":"{{}}","signature":"{sig}","key":"c411e2a51c85c9cc"}}"#);
         let s = parse_file(&file).unwrap();
         assert_eq!(s.payload, "{}");
         assert_eq!(s.signature.len(), 64);
-        assert!(parse_file(&file.replace("4cb3280eaea65b50", "deadbeefdeadbeef")).unwrap_err().contains("doesn't trust"));
+        assert!(parse_file(&file.replace("c411e2a51c85c9cc", "deadbeefdeadbeef")).unwrap_err().contains("doesn't trust"));
         assert!(parse_file(&file.replace(&sig, "AAAA")).is_err());
         assert!(parse_file("<html>").is_err());
     }
@@ -309,7 +380,7 @@ mod tests {
         assert_eq!((r.version.as_str(), r.date.as_str(), r.headline.as_str()), (V, "2026-10-25", "Sing along from the closed island"));
         assert_eq!(r.download(false).map(|d| d.size), Some(2457657));
         assert_eq!(r.download(true), None, "no DMG yet");
-        let mac = r#","mac":{"url":"https://github.com/lucacadalora/oyenza-studio/releases/download/v0.2.3/Oyenza-Studio-0.2.3-mac.dmg","size":3667341,"sha256":"fabc80efc387be83d7f82702bede7c3d2470f7aa6ef62cc2a8cd095a425f3fb9"}"#;
+        let mac = r#","mac":{"url":"https://github.com/ihzaskip/oyenza-studio/releases/download/v0.2.3/Oyenza-Studio-0.2.3-mac.dmg","size":3667341,"sha256":"fabc80efc387be83d7f82702bede7c3d2470f7aa6ef62cc2a8cd095a425f3fb9"}"#;
         let r = parse_payload(&payload(V, mac)).unwrap();
         assert_eq!(r.download(true).map(|d| d.size), Some(3667341));
         // Each download knows its release's version (a Mac checks the app in the DMG against it).
@@ -323,7 +394,7 @@ mod tests {
     fn a_payload_pointing_elsewhere_is_refused() {
         let p = payload(V, "");
         // Downloads from another place, another version's folder, or a path that climbs out.
-        assert!(parse_payload(&p.replace("https://github.com/lucacadalora/oyenza-studio/releases/download", "https://example.com/x")).is_err());
+        assert!(parse_payload(&p.replace("https://github.com/ihzaskip/oyenza-studio/releases/download", "https://example.com/x")).is_err());
         assert!(parse_payload(&p.replace("download/v0.2.3/", "download/v0.2.2/")).is_err());
         assert!(parse_payload(&p.replace("Oyenza-Studio-Setup-0.2.3.exe", "../../x/evil.exe")).is_err());
         // Notes elsewhere, a bad hash, a newer layout, not a version.

@@ -1084,6 +1084,10 @@ impl App {
                     shell::open_app(&id);
                     opened = true;
                 }
+                Some(NoticeAction::OpenUrl(url)) => {
+                    shell::open(&url);
+                    opened = true;
+                }
                 None => {}
             }
         }
@@ -2712,6 +2716,12 @@ impl App {
                     self.expand();
                 }
                 // A frame, so a new version's notice goes up now, not with the next redraw.
+                self.request_frame();
+            }
+            AppEvent::Update(services::update::UpdateEvent::Upstream(r)) => {
+                if let Some(u) = self.updater.as_mut() {
+                    u.upstream(r);
+                }
                 self.request_frame();
             }
             AppEvent::Update(services::update::UpdateEvent::Downloaded(r)) => {

@@ -1832,6 +1832,12 @@ impl App {
                 // A frame, so a new version's notice goes up now, not with the next redraw.
                 self.request_frame();
             }
+            AppEvent::Update(services::update::UpdateEvent::Upstream(r)) => {
+                if let Some(u) = self.updater.as_mut() {
+                    u.upstream(r);
+                }
+                self.request_frame();
+            }
             AppEvent::Update(services::update::UpdateEvent::Downloaded(r)) => {
                 // Check for updates… was waiting for it: the Update sheet.
                 if self.updater.as_mut().is_some_and(|u| u.fetched(&mut self.st, r)) {
@@ -2602,6 +2608,7 @@ impl App {
                 Some(NoticeAction::OpenPage(p)) => self.st.page = p,
                 Some(NoticeAction::OpenUpdate) => self.st.open_update(),
                 Some(NoticeAction::OpenApp(_)) => {}
+                Some(NoticeAction::OpenUrl(url)) => services::open(&url),
                 Some(NoticeAction::StartFocus) => {
                     self.st.page = PageKind::Focus;
                     if !self.st.pomodoro.is_active() {

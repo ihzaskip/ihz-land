@@ -29,7 +29,7 @@ use crate::state::{AppState, InlineAction, Notice, NoticeAction, Said};
 use crate::version::VERSION;
 use poni_core::geom::{palette, Color};
 use poni_core::store::{load_json, save_json_atomic};
-use poni_core::update::{self, Memory, Release};
+use poni_core::update::{self, Memory, Release, Upstream};
 use poni_core::update::Download;
 use std::path::PathBuf;
 
@@ -352,7 +352,7 @@ impl Updater {
             return true;
         }
         if !self.memory.should_announce(VERSION, MAC) {
-            return false;
+            return self.announce_upstream(st);
         }
         // A copy that installs downloads first, then tells (a failed
         // download tells too, with the release page or the DMG).
@@ -364,6 +364,28 @@ impl Updater {
         // No time limit: it stays until Update or Hide. Another notice may
         // take its place; it comes back once the island is free again.
         st.notice = Some(new_version_notice(&rel, st.accent, f64::INFINITY));
+        true
+    }
+
+    /// The original project's latest release, read with the update file.
+    /// A failed read keeps what was read before.
+    pub fn upstream(&mut self, r: Result<Upstream, String>) {
+        let Ok(u) = r else { return };
+        if self.memory.upstream.as_ref() != Some(&u) {
+            crate::pinfo!("updates: the original project's latest release is {}", u.version);
+            self.memory.upstream = Some(u);
+            save(&self.path, &self.memory);
+        }
+    }
+
+    /// The original project released a version later than this one: told
+    /// once on the island, and clicked it opens that release's page.
+    fn announce_upstream(&mut self, st: &mut AppState) -> bool {
+        let Some(u) = self.memory.upstream_to_tell(VERSION).cloned() else { return false };
+        crate::pinfo!("updates: telling about the original project's {}", u.version);
+        self.memory.upstream_told = u.version.clone();
+        save(&self.path, &self.memory);
+        st.notice = Some(upstream_notice(&u, st.accent, f64::INFINITY));
         true
     }
 
@@ -451,6 +473,23 @@ pub fn new_version_notice(rel: &Release, accent: Color, until: f64) -> Notice {
     }
 }
 
+/// "Oyenza Studio 0.2.30 is out" (the version dimmer) over the original
+/// project's headline, and Hide. Clicked, it opens that release's page, to
+/// decide whether to sync it into this fork.
+pub fn upstream_notice(u: &Upstream, accent: Color, until: f64) -> Notice {
+    Notice {
+        icon: Icon::Open,
+        color: accent,
+        title: "Original released".into(),
+        title_dim: u.version.clone(),
+        subtitle: u.headline.clone(),
+        until,
+        action: Some(NoticeAction::OpenUrl(u.notes.clone())),
+        inline: Some(InlineAction::Hide),
+        reveal: None,
+    }
+}
+
 /// A new version's notice, which stays until it is seen.
 fn is_new_version_notice(n: &Notice) -> bool {
     n.action == Some(NoticeAction::OpenUpdate)
@@ -499,7 +538,7 @@ mod tests {
     /// A later release than this build, remembered from an earlier look.
     fn remembered(dir: &std::path::Path, setup: &[u8]) -> PathBuf {
         let next = format!("{}.99", VERSION);
-        let repo = "https://github.com/lucacadalora/oyenza-studio/releases";
+        let repo = "https://github.com/ihzaskip/oyenza-studio/releases";
         let d = Download {
             url: format!("{repo}/download/v{next}/Oyenza-Studio-Setup-{next}.exe"),
             size: setup.len() as u64,
@@ -558,7 +597,7 @@ mod tests {
         assert!(u.ask(now), "a read starts at once");
         u.begin();
         assert!(!u.ask(now), "not a second one while it runs");
-        let repo = "https://github.com/lucacadalora/oyenza-studio/releases";
+        let repo = "https://github.com/ihzaskip/oyenza-studio/releases";
         let this = Release { version: VERSION.into(), date: String::new(), headline: "This".into(), notes: format!("{repo}/tag/v{VERSION}"), windows: None, mac: None };
         assert!(!u.checked(&mut st, Ok(this), now));
         assert_eq!(st.notice.as_ref().map(|n| n.title.as_str()), Some("Oyenza Studio is up to date"));
@@ -634,6 +673,34 @@ mod tests {
     }
 
     #[test]
+    fn the_original_projects_release_is_told_once_and_opens_its_page() {
+        let dir = folder("upstream");
+        let path = dir.join("update.json");
+        let mut st = AppState::new(Settings::default(), Store::default());
+        let mut u = Updater::open(path.clone(), dir.join("setups"), &mut st, 10);
+        // Nothing read yet, or the original project isn't ahead: nothing to tell.
+        assert!(!u.announce(&mut st, true));
+        u.upstream(Ok(Upstream { version: VERSION.into(), headline: "Same".into(), notes: "x".into() }));
+        assert!(!u.announce(&mut st, true), "already this version");
+        let later = Upstream { version: "99.0.0".into(), headline: "Something new".into(), notes: "https://github.com/lucacadalora/oyenza-studio/releases/tag/v99.0.0".into() };
+        u.upstream(Ok(later.clone()));
+        // A failed read keeps what was read.
+        u.upstream(Err("offline".into()));
+        assert!(u.announce(&mut st, true));
+        let n = st.notice.clone().expect("told");
+        assert_eq!((n.title_dim.as_str(), n.subtitle.as_str()), ("99.0.0", "Something new"));
+        assert_eq!(n.action, Some(NoticeAction::OpenUrl(later.notes.clone())));
+        assert_eq!(n.inline, Some(InlineAction::Hide));
+        // Once per version, even after a restart.
+        st.notice = None;
+        assert!(!u.announce(&mut st, true));
+        let mut st = AppState::new(Settings::default(), Store::default());
+        let mut u = Updater::open(path, dir.join("setups"), &mut st, 10);
+        assert!(!u.announce(&mut st, true));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
     fn the_update_sheet_counts_as_seen() {
         let dir = folder("sheet");
         let path = remembered(&dir, b"setup bytes");
@@ -657,7 +724,7 @@ mod tests {
         let mut st = AppState::new(Settings::default(), Store::default());
         let mut u = Updater::open(dir.join("update.json"), dir.join("setups"), &mut st, 10);
         let now = unix_now();
-        let repo = "https://github.com/lucacadalora/oyenza-studio/releases";
+        let repo = "https://github.com/ihzaskip/oyenza-studio/releases";
         let this = Release { version: VERSION.into(), date: String::new(), headline: "This".into(), notes: format!("{repo}/tag/v{VERSION}"), windows: None, mac: None };
         st.update.said = Some(Said::Checking);
         assert!(u.ask(now));
