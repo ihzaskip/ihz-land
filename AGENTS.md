@@ -27,7 +27,7 @@ Only the names people see changed. `poni.exe`, its folders (`Poni`), the uninsta
 
 ## Website and releases
 
-The website is `site/index.html`, published at https://ihzaskip.github.io/oyenza-studio/ by the Website workflow (`.github/workflows/pages.yml`) whenever `site/` or `docs/brand/` changes on main, and after every release. Its `<span data-release="version">` names the version it describes: a page naming an unreleased version waits for that release (`tools/ci-site-check.sh`). Every deploy carries `latest.json`, the signed update file every copy of the app reads (`poni_core::update::FEED_URL`, [docs/updates.md](docs/updates.md)); before the first release there is none, and the app reads the 404 as "nothing new". The `UPDATE_FEED_KEY` secret that signs it lives in the `release` environment: never print it or move it. Its public half is in `crates/poni-core/data/update-keys.txt`.
+The website is `site/index.html`, published at https://ihzaskip.github.io/ihz-land/ by the Website workflow (`.github/workflows/pages.yml`) whenever `site/` or `docs/brand/` changes on main, and after every release. Its `<span data-release="version">` names the version it describes: a page naming an unreleased version waits for that release (`tools/ci-site-check.sh`). Every deploy carries `latest.json`, the signed update file every copy of the app reads (`poni_core::update::FEED_URL`, [docs/updates.md](docs/updates.md)); before the first release there is none, and the app reads the 404 as "nothing new". The `UPDATE_FEED_KEY` secret that signs it lives in the `release` environment: never print it or move it. Its public half is in `crates/poni-core/data/update-keys.txt`.
 
 ## Cutting a release
 

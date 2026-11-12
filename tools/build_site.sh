@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Assemble the website (served by GitHub Pages at ihzaskip.github.io/oyenza-studio,
+# Assemble the website (served by GitHub Pages at ihzaskip.github.io/ihz-land,
 # see .github/workflows/pages.yml) into _site/: the page from site/, plus
 # docs/brand as brand/ (the logo and the share card).
 #

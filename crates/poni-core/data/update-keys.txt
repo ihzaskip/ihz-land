@@ -1,4 +1,4 @@
-# The keys this fork (ihzaskip/oyenza-studio) trusts for its update file, ihzaskip.github.io/oyenza-studio/latest.json
+# The keys this fork (ihzaskip/ihz-land) trusts for its update file, ihzaskip.github.io/ihz-land/latest.json
 # (docs/updates.md). The app reads this file when it is built; tools/make_update_feed.py
 # refuses to sign with a key that isn't listed here.
 #

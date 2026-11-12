@@ -929,7 +929,7 @@ fn fake_release() -> poni_core::update::Release {
         *last += 1;
     }
     let version = parts.iter().map(u64::to_string).collect::<Vec<_>>().join(".");
-    let repo = "https://github.com/ihzaskip/oyenza-studio/releases";
+    let repo = "https://github.com/ihzaskip/ihz-land/releases";
     poni_core::update::Release {
         date: "2026-10-27".into(),
         headline: "Updates install themselves on a Mac".into(),

@@ -398,14 +398,21 @@ fn verify(message: &[u8], signature: &[u8; 64], key: &[u8; 65]) -> bool {
 mod tests {
     use super::*;
 
-    /// A real file, signed with the signing key for v0.2.3.
+    /// A real file, signed with the signing key for v0.2.3, before the
+    /// repository was renamed from oyenza-studio to ihz-land: its addresses
+    /// still name the old repository. Re-sign it with UPDATE_FEED_KEY
+    /// (tools/make_update_feed.py) to make it a current one again.
     const SAMPLE: &str = include_str!("../../../poni-core/data/update-sample.json");
 
     #[test]
     fn a_signed_file_is_believed() {
-        let r = believe(SAMPLE).expect("the sample's signature checks out");
+        let signed = update::parse_file(SAMPLE).unwrap();
+        assert!(verify(signed.payload.as_bytes(), &signed.signature, &signed.key), "the sample's signature checks out");
+        let r = update::parse_payload(&signed.payload.replace("ihzaskip/oyenza-studio", "ihzaskip/ihz-land")).unwrap();
         assert_eq!((r.version.as_str(), r.headline.as_str()), ("0.2.3", "Sing along from the closed island"));
         assert_eq!(r.windows.as_ref().map(|d| d.size), Some(2457657));
+        // Signed, but its downloads are the old repository's: refused.
+        assert!(believe(SAMPLE).is_err());
     }
 
     #[test]

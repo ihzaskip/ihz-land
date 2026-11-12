@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Write latest.json, the file every copy of ihz.land reads to learn that a
 new version is out (docs/updates.md). The Website workflow publishes it as
-https://ihzaskip.github.io/oyenza-studio/latest.json with every deploy.
+https://ihzaskip.github.io/ihz-land/latest.json with every deploy.
 
 It describes the latest GitHub release: its version and day, the first bold
 line of its notes as a headline, and the Windows installer and Mac DMG with
@@ -20,7 +20,7 @@ Usage:
     --check     build and print the payload only: no key, nothing signed
 
 Env: UPDATE_FEED_KEY (the private key, PEM), GH_TOKEN (optional: raises the
-API's rate limit), GITHUB_REPOSITORY (default ihzaskip/oyenza-studio).
+API's rate limit), GITHUB_REPOSITORY (default ihzaskip/ihz-land).
 Needs python3 (standard library only) and openssl.
 """
 
@@ -38,7 +38,7 @@ import urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 KEYS = os.path.join(ROOT, "crates", "poni-core", "data", "update-keys.txt")
-REPO = os.environ.get("GITHUB_REPOSITORY") or "ihzaskip/oyenza-studio"
+REPO = os.environ.get("GITHUB_REPOSITORY") or "ihzaskip/ihz-land"
 API = "https://api.github.com/repos/" + REPO
 SCHEMA = 1
 # The app shows the headline on the island, one line: keep it short.

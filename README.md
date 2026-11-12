@@ -5,8 +5,8 @@
 <p align="center">A living island at the top of your screen, for Windows.<br>
 A personal fork of <a href="https://github.com/lucacadalora/oyenza-studio">Oyenza Studio</a> (MIT).</p>
 
-<p align="center"><a href="https://ihzaskip.github.io/oyenza-studio/">Website</a> ·
-<a href="https://github.com/ihzaskip/oyenza-studio/releases/latest/download/ihz-land-Setup.exe">Download for Windows</a> ·
+<p align="center"><a href="https://ihzaskip.github.io/ihz-land/">Website</a> ·
+<a href="https://github.com/ihzaskip/ihz-land/releases/latest/download/ihz-land-Setup.exe">Download for Windows</a> ·
 <a href="PRIVACY.md">Privacy</a></p>
 
 ihz.land draws a small black island at the top centre of your screen. Point at it (or click it) and it opens:
@@ -53,7 +53,7 @@ switching one off deletes its files. [AGENTS.md](AGENTS.md) has the rules every 
 
 ## Install
 
-**[Download ihz-land-Setup.exe](https://github.com/ihzaskip/oyenza-studio/releases/latest/download/ihz-land-Setup.exe)**
+**[Download ihz-land-Setup.exe](https://github.com/ihzaskip/ihz-land/releases/latest/download/ihz-land-Setup.exe)**
 and run it. It installs just for you and needs no admin rights. Builds aren't code-signed, so Windows SmartScreen
 may say "Windows protected your PC": click **More info → Run anyway**.
 
@@ -61,7 +61,7 @@ Your data lives in `%APPDATA%\Poni\`, cache and log in `%LOCALAPPDATA%\Poni\` (t
 original project's, so updates from it merge cleanly). Uninstalling keeps your data.
 
 New versions come from this fork's own signed update file
-(`https://ihzaskip.github.io/oyenza-studio/latest.json`). When the original project releases, the island says so
+(`https://ihzaskip.github.io/ihz-land/latest.json`). When the original project releases, the island says so
 once and links to its release page; nothing of it is downloaded.
 
 ## Guides

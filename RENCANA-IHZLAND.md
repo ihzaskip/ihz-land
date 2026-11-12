@@ -1,6 +1,6 @@
 # Rencana ihz.land
 
-Fork pribadi Oyenza Studio (`ihzaskip/oyenza-studio`) yang diubah menjadi **ihz.land**.
+Fork pribadi Oyenza Studio (`ihzaskip/ihz-land`, dulu `ihzaskip/oyenza-studio` sampai 12 Nov 2026) yang diubah menjadi **ihz.land**.
 Keputusan user (12 Nov 2026) ada di bawah. Centang tiap langkah setelah selesai.
 
 ## Prinsip
@@ -42,12 +42,12 @@ Keputusan user (12 Nov 2026) ada di bawah. Centang tiap langkah setelah selesai.
        (VPS Hermes sudah tidak ada; Render minta kartu). Sampai di-hosting, pairing ponsel
        belum jalan; phone drop lewat Wi-Fi yang sama tetap jalan. TURN Cloudflare opsional.
 10. [x] **Kota sholat**: tetap memakai `studio.oyenza.com/places` (keputusan user).
-11. [~] **Saluran rilis**: GitHub Pages fork (`ihzaskip.github.io/oyenza-studio`),
+11. [~] **Saluran rilis**: GitHub Pages fork (`ihzaskip.github.io/ihz-land`),
         environment `release` dengan secret `UPDATE_FEED_KEY`
         (`~/.oyenza-fork-keys/sign.pem`), CI membuat rilis dari tag `v*`.
         Situs `site/` diganti halaman ihz.land sederhana.
         Sudah: Actions fork aktif, GitHub Pages (build type workflow) hidup di
-        https://ihzaskip.github.io/oyenza-studio/, environment `release` dibuat, aset rilis
+        https://ihzaskip.github.io/ihz-land/, environment `release` dibuat, aset rilis
         `ihz-land-Setup-x.exe` / `ihz-land-Setup.exe` / `ihz-land-x-portable.zip`, situs baru,
         workflow upstream (metrics, store, ytdlp-pin, mac) hanya manual.
         Secret `UPDATE_FEED_KEY` di environment `release` sudah dipasang user (12 Nov 2026).

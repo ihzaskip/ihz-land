@@ -20,7 +20,7 @@ cd "$(dirname "$0")/.."
 
 PAGE=site/index.html
 TITLE="Landing page not updated for v"
-REPO=${GITHUB_REPOSITORY:-ihzaskip/oyenza-studio}
+REPO=${GITHUB_REPOSITORY:-ihzaskip/ihz-land}
 SERVER=${GITHUB_SERVER_URL:-https://github.com}
 
 die() {

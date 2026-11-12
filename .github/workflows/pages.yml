@@ -1,5 +1,5 @@
 # The website (site/ + docs/brand), published with GitHub Pages at
-# https://ihzaskip.github.io/oyenza-studio/ on every push to main that touches
+# https://ihzaskip.github.io/ihz-land/ on every push to main that touches
 # it. Repo setting: Pages → Source: GitHub Actions.
 #
 # Every release updates the website too (AGENTS.md). A page that names a version

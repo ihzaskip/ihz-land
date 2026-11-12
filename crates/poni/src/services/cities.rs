@@ -11,7 +11,7 @@ use crate::services::http::{Client, MtaGuard};
 use poni_core::prayer::{world, World};
 use std::time::Duration;
 
-const USER_AGENT: &str = concat!("ihzland/", env!("CARGO_PKG_VERSION"), " (+https://github.com/ihzaskip/oyenza-studio)");
+const USER_AGENT: &str = concat!("ihzland/", env!("CARGO_PKG_VERSION"), " (+https://github.com/ihzaskip/ihz-land)");
 
 /// The biggest file is under 100 KB; this is plenty on a slow line.
 const TIMEOUT: Duration = Duration::from_secs(10);

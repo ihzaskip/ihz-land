@@ -538,7 +538,7 @@ mod tests {
     /// A later release than this build, remembered from an earlier look.
     fn remembered(dir: &std::path::Path, setup: &[u8]) -> PathBuf {
         let next = format!("{}.99", VERSION);
-        let repo = "https://github.com/ihzaskip/oyenza-studio/releases";
+        let repo = "https://github.com/ihzaskip/ihz-land/releases";
         let d = Download {
             url: format!("{repo}/download/v{next}/Oyenza-Studio-Setup-{next}.exe"),
             size: setup.len() as u64,
@@ -597,7 +597,7 @@ mod tests {
         assert!(u.ask(now), "a read starts at once");
         u.begin();
         assert!(!u.ask(now), "not a second one while it runs");
-        let repo = "https://github.com/ihzaskip/oyenza-studio/releases";
+        let repo = "https://github.com/ihzaskip/ihz-land/releases";
         let this = Release { version: VERSION.into(), date: String::new(), headline: "This".into(), notes: format!("{repo}/tag/v{VERSION}"), windows: None, mac: None };
         assert!(!u.checked(&mut st, Ok(this), now));
         assert_eq!(st.notice.as_ref().map(|n| n.title.as_str()), Some("ihz.land is up to date"));
@@ -724,7 +724,7 @@ mod tests {
         let mut st = AppState::new(Settings::default(), Store::default());
         let mut u = Updater::open(dir.join("update.json"), dir.join("setups"), &mut st, 10);
         let now = unix_now();
-        let repo = "https://github.com/ihzaskip/oyenza-studio/releases";
+        let repo = "https://github.com/ihzaskip/ihz-land/releases";
         let this = Release { version: VERSION.into(), date: String::new(), headline: "This".into(), notes: format!("{repo}/tag/v{VERSION}"), windows: None, mac: None };
         st.update.said = Some(Said::Checking);
         assert!(u.ask(now));
