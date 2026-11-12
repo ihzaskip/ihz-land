@@ -50,7 +50,6 @@ Keputusan user (12 Nov 2026) ada di bawah. Centang tiap langkah setelah selesai.
         https://ihzaskip.github.io/oyenza-studio/, environment `release` dibuat, aset rilis
         `ihz-land-Setup-x.exe` / `ihz-land-Setup.exe` / `ihz-land-x-portable.zip`, situs baru,
         workflow upstream (metrics, store, ytdlp-pin, mac) hanya manual.
-        **Belum**: secret `UPDATE_FEED_KEY` di environment `release` harus diisi user sendiri
-        (lihat README / pesan sesi): `gh secret set UPDATE_FEED_KEY --env release --repo
-        ihzaskip/oyenza-studio < ~/.oyenza-fork-keys/sign.pem`. Belum ada tag/rilis.
+        Secret `UPDATE_FEED_KEY` di environment `release` sudah dipasang user (12 Nov 2026).
+        Belum ada tag/rilis.
 12. [x] **README** ditulis ulang untuk ihz.land (kredit fork MIT), PRIVACY.md dan AGENTS.md disesuaikan.
