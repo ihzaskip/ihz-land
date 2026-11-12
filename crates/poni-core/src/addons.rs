@@ -307,8 +307,46 @@ pub const IELTS: Addon = Addon {
     files: &[],
 };
 
+/// The Quran add-on's packed text, translation and timing (`crate::quran::Pack`).
+pub const QURAN_PACK_FILE: &str = "quran.bin";
+/// The font its Arabic is drawn in.
+pub const QURAN_FONT_FILE: &str = "AmiriQuran.ttf";
+
+/// Quran: the Quran page, an ayah at a time with the Kemenag translation and
+/// Mishary Alafasy's recitation, the word being recited lit up
+/// (`addons/quran/`). Prayer's "Read Quran" switches it on. Its files are on
+/// this fork's own pre-release, not the original project's [`RELEASES`]. The recitation
+/// streams from quranicaudio.com only while it plays. Windows only.
+pub const QURAN: Addon = Addon {
+    id: "quran",
+    title: "Quran",
+    blurb: "Read and listen to the Quran, a word lit up as it is recited, with the Kemenag translation.",
+    mac_blurb: None,
+    tag: "addon-quran-1",
+    files: &[
+        AddonFile {
+            name: QURAN_PACK_FILE,
+            size: 1_153_422,
+            sha256: "50743791d53114eba521ab0424cdf8eafe6b97e41eda24a02028091cc628a61a",
+            url: Some("https://github.com/ihzaskip/ihz-land/releases/download/addon-quran-1/quran.bin"),
+        },
+        AddonFile {
+            name: QURAN_FONT_FILE,
+            size: 133_376,
+            sha256: "a406aa685f307d96327deecaae6d69322d28e30cd7ec8929badbee19a7e6c585",
+            url: Some("https://github.com/ihzaskip/ihz-land/releases/download/addon-quran-1/AmiriQuran.ttf"),
+        },
+        AddonFile {
+            name: "NOTICE.txt",
+            size: 5_043,
+            sha256: "925badefe13c9ec2f2eb67059627dc67f10dc6f013a101c5cd8c01ed4a914a39",
+            url: Some("https://github.com/ihzaskip/ihz-land/releases/download/addon-quran-1/NOTICE.txt"),
+        },
+    ],
+};
+
 /// Every add-on, in the order the Add-ons page lists them.
-pub const ALL: [&Addon; 9] = [&PRAYER_TIMES, &JAPANESE_READINGS, &SCRIPT_READER, &SYSTEM, &CAFFEINE, &SCREEN_RECORDER, &AI_USAGE, &IELTS, &DOWNLOADER];
+pub const ALL: [&Addon; 10] = [&PRAYER_TIMES, &QURAN, &JAPANESE_READINGS, &SCRIPT_READER, &SYSTEM, &CAFFEINE, &SCREEN_RECORDER, &AI_USAGE, &IELTS, &DOWNLOADER];
 
 /// Whether Japanese readings switch themselves on for a song whose kanji went
 /// unread for want of them (`wants`): only while the person reads
@@ -503,6 +541,22 @@ mod tests {
     }
 
     #[test]
+    fn quran_files_are_the_ones_in_the_repo() {
+        // tools/make_quran_pack.py's pack, the font and the notice, on this fork's own release.
+        let repo: [(&str, &[u8]); 3] = [
+            (QURAN_PACK_FILE, include_bytes!("../../../addons/quran/quran.bin")),
+            (QURAN_FONT_FILE, include_bytes!("../../../addons/quran/AmiriQuran.ttf")),
+            ("NOTICE.txt", include_bytes!("../../../addons/quran/NOTICE.txt")),
+        ];
+        assert_eq!(QURAN.files.len(), repo.len());
+        for (f, (name, bytes)) in QURAN.files.iter().zip(repo) {
+            assert_eq!(f.name, name);
+            assert!(f.matches(bytes), "{name}: size {} sha256 {}", bytes.len(), sha256::hex(&sha256::sha256(bytes)));
+            assert_eq!(QURAN.url(f), format!("https://github.com/ihzaskip/ihz-land/releases/download/addon-quran-1/{name}"));
+        }
+    }
+
+    #[test]
     fn the_music_page_offers_japanese_readings_until_they_are_here() {
         assert_eq!(ja_offer(Status::Off), Some(("Romaji for kanji: get Japanese readings (3.8 MB)".to_string(), true)));
         let (line, click) = ja_offer(Status::Downloading { done: 1_700_000, total: JAPANESE_READINGS.size() }).unwrap();
@@ -539,7 +593,7 @@ mod tests {
     fn add_ons_are_listed_in_order_each_with_its_own_id() {
         // The Add-ons page's order.
         let ids: Vec<&str> = ALL.iter().map(|a| a.id).collect();
-        assert_eq!(ids, ["sholat", "ja", "script", "system", "caffeine", "recorder", "ai", "ielts", "downloader"]);
+        assert_eq!(ids, ["sholat", "quran", "ja", "script", "system", "caffeine", "recorder", "ai", "ielts", "downloader"]);
         for (i, a) in ALL.iter().enumerate() {
             // The key in settings.json and the folder's name.
             assert!(!a.id.is_empty() && a.id.bytes().all(|b| b.is_ascii_lowercase()), "{}", a.id);

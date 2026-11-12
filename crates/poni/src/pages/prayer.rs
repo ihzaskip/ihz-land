@@ -89,7 +89,6 @@ const FOOT_H: f32 = 28.0;
 const SEARCH_H: f32 = 32.0;
 const RESULT_H: f32 = 26.0;
 const RESULTS: usize = 8;
-const QURAN: &str = "https://work.ihz.app";
 /// The picker's row for whose times and Hijri dates, at its bottom.
 const FOLLOW_H: f32 = 28.0;
 const FOLLOWS: [(PrayerFollow, &str); 2] = [(PrayerFollow::Kemenag, "Kemenag"), (PrayerFollow::Muhammadiyah, "Muhammadiyah (KHGT)")];
@@ -205,9 +204,15 @@ pub fn draw(ui: &mut Ui, st: &mut AppState, area: Rect) {
         st.prayer.picking = true;
         st.prayer.query.clear();
     }
-    let read_w = ui.pill_width("Read Quran", true, true);
-    if ui.pill(wid("prayer.quran"), Rect::new(x + change_w + 8.0, py, read_w, PILL_SMALL), "Read Quran", Some(Icon::Open), PillStyle::Utility).clicked {
-        st.cmd(Command::OpenUrl(QURAN.into()));
+    // The Quran page: the first click switches its add-on on (it downloads, 1.3 MB).
+    let quran = cfg!(windows);
+    let read_w = if quran { ui.pill_width("Read Quran", true, true) } else { 0.0 };
+    if quran && ui.pill(wid("prayer.quran"), Rect::new(x + change_w + 8.0, py, read_w, PILL_SMALL), "Read Quran", Some(Icon::Book), PillStyle::Utility).clicked {
+        if !st.quran_on() {
+            st.settings.set_addon(poni_core::addons::QURAN.id, true);
+            st.cmd(Command::SaveSettings);
+        }
+        st.cmd(Command::SetPage(super::PageKind::Quran));
     }
 
     let names = SOUNDS.map(|s| s.1);

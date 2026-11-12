@@ -160,6 +160,10 @@ pub enum AppEvent {
     Usage(crate::services::usage::UsageEvent),
     /// The adzan finished playing, or couldn't play on.
     AdzanEnded,
+    /// The Quran page's surah finished playing (`services::quran`).
+    QuranEnded,
+    /// ...or couldn't play (no connection).
+    QuranFailed,
     /// Start with Windows is on (true) or off, read for the Settings page.
     Autostart(bool),
     /// Free-form log line from a service thread.

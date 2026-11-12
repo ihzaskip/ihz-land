@@ -2904,7 +2904,8 @@ impl App {
                     }
                 }
                 // Show over games reads Windows' frame log; the Mac has no Games view.
-                Command::CheckFps | Command::AllowFps => {}
+                // No Quran page here (`AppState::quran_on`).
+                Command::CheckFps | Command::AllowFps | Command::Quran(_) => {}
                 Command::SetPinned(b) => {
                     self.st.pinned = b;
                     if !b {

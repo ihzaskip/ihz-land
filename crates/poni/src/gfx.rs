@@ -758,6 +758,11 @@ pub struct Gfx {
     /// them, or when this Windows can't load fonts from memory).
     embedded: Option<IDWriteFontCollection>,
     embedded_tried: bool,
+    /// The Quran page's font (its add-on's Amiri Quran), from when that page
+    /// reads it until the add-on goes ([`Gfx::set_quran_font`]).
+    quran_font: Option<IDWriteFontCollection>,
+    /// The ayah on screen, laid out: its text, size, width and height (bits).
+    quran_layout: Option<(String, [u32; 3], IDWriteTextLayout)>,
     /// How content is painted (the theme).
     look: &'static Look,
     formats: HashMap<(u32, Weight, bool), IDWriteTextFormat>,
@@ -836,12 +841,17 @@ const EMBEDDED_FONTS: [&[u8]; 4] = [
 /// they lack (Japanese, Korean, emoji, ...) still come from the system fonts
 /// through DirectWrite's fallback.
 fn load_embedded_fonts(dwrite: &IDWriteFactory) -> Result<IDWriteFontCollection> {
+    load_fonts(dwrite, &EMBEDDED_FONTS)
+}
+
+/// A font collection of the fonts in `fonts` (DirectWrite copies the bytes).
+fn load_fonts(dwrite: &IDWriteFactory, fonts: &[&[u8]]) -> Result<IDWriteFontCollection> {
     unsafe {
         let f5: IDWriteFactory5 = dwrite.cast()?;
         let loader = f5.CreateInMemoryFontFileLoader()?;
         f5.RegisterFontFileLoader(&loader)?;
         let builder = f5.CreateFontSetBuilder()?;
-        for data in EMBEDDED_FONTS {
+        for data in fonts {
             // No owner object: DirectWrite keeps its own copy of the bytes.
             let file = loader.CreateInMemoryFontFileReference(&f5, data.as_ptr() as *const c_void, data.len() as u32, None::<&windows::core::IUnknown>)?;
             builder.AddFontFile(&file)?;
@@ -918,6 +928,8 @@ impl Gfx {
                 family,
                 embedded: None,
                 embedded_tried: false,
+                quran_font: None,
+                quran_layout: None,
                 look: &look::CLASSIC,
                 formats: HashMap::new(),
                 layouts: HashMap::new(),
@@ -1425,6 +1437,58 @@ impl Gfx {
         let l = unsafe { self.main.CreateCompatibleRenderTarget(Some(&dip), Some(&px), Some(&PREMUL_BGRA), D2D1_COMPATIBLE_RENDER_TARGET_OPTIONS_NONE)? };
         setup_target(&l.cast()?);
         self.layers.push(l.clone());
+        Ok(l)
+    }
+
+    /// Draw [`Canvas::quran_text`] in the font `data` holds (the Quran
+    /// add-on's, copied), or in the system's again with None.
+    pub fn set_quran_font(&mut self, data: Option<&[u8]>) {
+        self.quran_layout = None;
+        self.quran_font = data.and_then(|d| match load_fonts(&self.dwrite, &[d]) {
+            Ok(c) => Some(c),
+            Err(e) => {
+                crate::pwarn!("quran: its font didn't load ({e}); the system's instead");
+                None
+            }
+        });
+    }
+
+    pub fn has_quran_font(&self) -> bool {
+        self.quran_font.is_some()
+    }
+
+    /// The ayah `s` laid out right to left, centred, wrapped to `w`: at
+    /// `size`, or smaller (down to 70%) when that is taller than `h`. One
+    /// layout is kept, the ayah on screen.
+    fn quran_layout(&mut self, s: &str, size: f32, w: f32, h: f32) -> Result<IDWriteTextLayout> {
+        let key = [size.to_bits(), w.to_bits(), h.to_bits()];
+        if let Some((text, k, l)) = &self.quran_layout {
+            if text == s && *k == key {
+                return Ok(l.clone());
+            }
+        }
+        // Without the add-on's font, Windows' own (DirectWrite finds what
+        // Segoe UI lacks in its other fonts).
+        let family = if self.quran_font.is_some() { w!("Amiri Quran") } else { w!("Segoe UI") };
+        let text = wide(s);
+        let mut layout = None;
+        for k in [1.0, 0.85, 0.7] {
+            let l = unsafe {
+                let f = self.dwrite.CreateTextFormat(family, self.quran_font.as_ref(), DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, size * k, w!("ar"))?;
+                f.SetReadingDirection(DWRITE_READING_DIRECTION_RIGHT_TO_LEFT)?;
+                f.SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER)?;
+                f.SetWordWrapping(DWRITE_WORD_WRAPPING_WRAP)?;
+                self.dwrite.CreateTextLayout(&text, &f, w, 10_000.0)?
+            };
+            let mut m = DWRITE_TEXT_METRICS::default();
+            let fits = unsafe { l.GetMetrics(&mut m).is_ok() } && m.height <= h;
+            layout = Some(l);
+            if fits {
+                break;
+            }
+        }
+        let l = layout.expect("three tries");
+        self.quran_layout = Some((s.to_string(), key, l.clone()));
         Ok(l)
     }
 
@@ -1973,6 +2037,40 @@ impl<'a> Canvas<'a> {
                 }
             },
             Err(_) => (0.0, st.size * 1.3),
+        }
+    }
+
+    /// An ayah for the Quran page: in its font, right to left, centred and
+    /// wrapped in `r`, in `color` with `spans` (UTF-16 start, length, colour)
+    /// over it, the word being recited. Too long for `r` even smaller, it
+    /// scrolls so the first span's line is the top one.
+    pub fn quran_text(&mut self, s: &str, r: Rect, size: f32, color: Color, spans: &[(u32, u32, Color)]) {
+        if s.is_empty() || r.w <= 0.0 || r.h <= 0.0 {
+            return;
+        }
+        let Ok(layout) = self.g.quran_layout(s, size, r.w, r.h) else { return };
+        unsafe {
+            let _ = layout.SetDrawingEffect(None::<&windows::core::IUnknown>, DWRITE_TEXT_RANGE { startPosition: 0, length: u32::MAX });
+            for &(start, length, c) in spans {
+                let c = self.g.look.paint_text(c).mul_alpha(self.alpha);
+                if let Ok(b) = self.g.rt.CreateSolidColorBrush(&d2d_color(c), None) {
+                    let _ = layout.SetDrawingEffect(&b, DWRITE_TEXT_RANGE { startPosition: start, length });
+                }
+            }
+            let mut m = DWRITE_TEXT_METRICS::default();
+            let _ = layout.GetMetrics(&mut m);
+            let mut y = r.y + ((r.h - m.height) / 2.0).max(0.0);
+            if let (true, Some(&(start, ..))) = (m.height > r.h, spans.first()) {
+                let (mut px, mut py, mut hit) = (0.0, 0.0, DWRITE_HIT_TEST_METRICS::default());
+                if layout.HitTestTextPosition(start, BOOL(0), &mut px, &mut py, &mut hit).is_ok() {
+                    // Its line on top: a line cut in half would lose its marks.
+                    y = r.y - hit.top.max(0.0);
+                }
+            }
+            self.set_text_brush(color);
+            self.clip(r);
+            self.g.rt.DrawTextLayout(pt(r.x, y), &layout, &self.g.brush, D2D1_DRAW_TEXT_OPTIONS_NONE);
+            self.unclip();
         }
     }
 

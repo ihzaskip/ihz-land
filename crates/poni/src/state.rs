@@ -455,6 +455,31 @@ pub enum CityFile {
     Failed,
 }
 
+/// The Quran page's live state (`pages::quran`, `app_quran`), while its
+/// add-on is on. Its place is kept in `settings.quran_at`.
+#[derive(Clone, Debug, Default)]
+pub struct QuranState {
+    /// The 114 surahs' names, read with the first surah the page opens.
+    pub surahs: Vec<poni_core::quran::SurahInfo>,
+    /// The surah on the page: its words, translation and timing.
+    pub surah: Option<poni_core::quran::Surah>,
+    /// Where the recitation is (ms into the surah), and when that was read
+    /// (mono seconds).
+    pub pos_ms: u32,
+    pub pos_at: f64,
+    pub playing: bool,
+    /// Why the page can't read or play (said under the controls).
+    pub error: Option<&'static str>,
+}
+
+impl QuranState {
+    /// Where the recitation is at `now`: on from the last reading while it plays.
+    pub fn ms_at(&self, now: f64) -> u32 {
+        let on = if self.playing { ((now - self.pos_at).max(0.0) * 1000.0) as u32 } else { 0 };
+        self.pos_ms.saturating_add(on)
+    }
+}
+
 /// The Prayer times add-on's live state.
 #[derive(Clone, Debug, Default)]
 pub struct PrayerState {
@@ -648,6 +673,8 @@ pub struct AppState {
     pub update: UpdateView,
     /// The Prayer times add-on, while it is on (its choices: `settings.prayer`).
     pub prayer: PrayerState,
+    /// The Quran page, while its add-on is on.
+    pub quran: QuranState,
     /// The Script page's reading (its script and pace are in `store.script`).
     pub script: poni_core::script::Reader,
     /// A message under the script until a time (mono seconds).
@@ -745,6 +772,7 @@ impl AppState {
             addons: BTreeMap::new(),
             update: UpdateView::default(),
             prayer: PrayerState::default(),
+            quran: QuranState::default(),
             script: poni_core::script::Reader::default(),
             script_note: None,
             script_hidden: None,
@@ -780,6 +808,7 @@ impl AppState {
             PageKind::Notifications => !st.notifications_on(),
             PageKind::Ielts => !st.ielts_on(),
             PageKind::Ai => !st.ai_usage_on(),
+            PageKind::Quran => !st.quran_on(),
             p => st.tab_hidden(p),
         };
         if off {
@@ -871,6 +900,12 @@ impl AppState {
     /// AI usage is on: the AI tab shows and its readers may run.
     pub fn ai_usage_on(&self) -> bool {
         self.settings.ai_usage_on()
+    }
+
+    /// The Quran add-on is on (its files may still be coming): its tab
+    /// shows. Windows only: the Mac app has no player for it.
+    pub fn quran_on(&self) -> bool {
+        cfg!(windows) && self.addon(poni_core::addons::QURAN.id).is_on()
     }
 
     /// Prayer times is on and its places are read: the tab and reminders run.

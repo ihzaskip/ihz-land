@@ -119,6 +119,8 @@ pub struct Settings {
     pub addons: BTreeMap<String, bool>,
     /// The Prayer times add-on's choices.
     pub prayer: PrayerSettings,
+    /// Where the Quran page was: surah and ayah, so it opens there again.
+    pub quran_at: [u16; 2],
     /// The Caffeine add-on's choices: bedtime, half-life, the limits, the reminder.
     pub caffeine: crate::caffeine::Prefs,
     /// Show over games: while a full-screen app is in front, the island
@@ -285,6 +287,7 @@ impl Default for Settings {
             system_history: true,
             addons: BTreeMap::new(),
             prayer: PrayerSettings::default(),
+            quran_at: [1, 1],
             caffeine: crate::caffeine::Prefs::default(),
             game_stats: false,
             game_peek: false,

@@ -43,6 +43,10 @@
 //! PONI_SELFTEST_PRAYER_AT=HH:MM shows the Prayer page at that time of the
 //! day (the other Prayer scenes stay 8 minutes before Ashar).
 //!
+//! PONI_SELFTEST_QURAN=<folder with the Quran add-on's files> (addons/quran)
+//! shows the Quran page with Al-Fatihah read from them; without it, the
+//! page shows its download.
+//!
 //! PONI_SELFTEST_ADDONS=download also downloads the Prayer times add-on's
 //! files from their release while the scenes run and checks each one
 //! (`addon-download`; Windows CI only, it needs github.com).
@@ -1122,7 +1126,7 @@ const SAMPLE_SCRIPT: &str = "Hi everyone, this one takes two minutes. Today I'll
 Drop any file on the island and it waits on the Shelf. Press the phone button, scan the code, and the file is on your phone. \
 No cable, no account, nothing to install on the phone.\n\nThat's it. Thanks for watching.";
 
-const SCENES: [Scene; 110] = [
+const SCENES: [Scene; 111] = [
     Scene::IdleClock,
     Scene::IdleEyes,
     Scene::Media,
@@ -1169,6 +1173,8 @@ const SCENES: [Scene; 110] = [
     Scene::AddonsFailed,
     // Prayer times on, its clock 8 minutes before today's Ashar in Jakarta.
     Scene::Page(PageKind::Prayer),
+    // The Quran page: its download, or with PONI_SELFTEST_QURAN=addons/quran a word being recited.
+    Scene::Page(PageKind::Quran),
     Scene::PrayerPicker,
     Scene::PrayerCountdown,
     Scene::PrayerNotice,
@@ -3089,6 +3095,7 @@ impl SelfTest {
     /// before each capture so clocks (track position, countdown) are pinned.
     fn apply(&self, app: &mut App, scene: Scene) {
         let now = clock::mono();
+        app.selftest_quran(scene.page() == Some(PageKind::Quran));
         let st = &mut app.st;
         st.settings.idle_style = match scene {
             Scene::IdleEyes => IdleStyle::Eyes,

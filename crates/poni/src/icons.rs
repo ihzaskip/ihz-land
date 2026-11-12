@@ -68,6 +68,8 @@ pub enum Icon {
     Addons,
     /// The Script tab: lines of text with a cue arrow at the line to say.
     Script,
+    /// An open book: the Quran.
+    Book,
     /// A crescent moon: Prayer times.
     Moon,
     /// Stop (the adzan): a rounded square.
@@ -289,6 +291,8 @@ pub fn parts(icon: Icon) -> &'static [Part] {
         ],
         // A circle (r 8) less a second one (r 7) up and to the right: both arcs meet where the circles cross.
         Moon => p![s("M19.77 13.9A8 8 0 1 1 10.1 4.23A7 7 0 0 0 19.77 13.9Z")],
+        // Two pages from the spine, their tops and bottoms bowed.
+        Book => p![s("M3 6.5a9 9 0 0 1 9 0a9 9 0 0 1 9 0v12a9 9 0 0 0-9 0a9 9 0 0 0-9 0z"), s("M12 6.5v12")],
         Script => p![s("M10 6.5h10"), s("M10 12h10"), s("M10 17.5h6.5"), f("M3.6 9.3v5.4a.8.8 0 0 0 1.2.7l4.3-2.7a.8.8 0 0 0 0-1.4L4.8 8.6a.8.8 0 0 0-1.2.7z")],
         Stop => p![f("M8.2 6.5h7.6a1.7 1.7 0 0 1 1.7 1.7v7.6a1.7 1.7 0 0 1-1.7 1.7H8.2a1.7 1.7 0 0 1-1.7-1.7V8.2a1.7 1.7 0 0 1 1.7-1.7z")],
         Record => p![f("M6.5 12a5.5 5.5 0 1 0 11 0a5.5 5.5 0 1 0-11 0z")],
@@ -420,7 +424,7 @@ mod tests {
         Icon::Pin, Icon::PinFill, Icon::Folder, Icon::File, Icon::Trash, Icon::Undo, Icon::Reset,
         Icon::Sliders, Icon::Open, Icon::Phone, Icon::Eye, 
         Icon::Unlink, Icon::Gear,
-        Icon::Gauge, Icon::App, Icon::Windows, Icon::Addons, Icon::Moon, Icon::Stop, Icon::Script, Icon::Record, Icon::Download,
+        Icon::Gauge, Icon::App, Icon::Windows, Icon::Addons, Icon::Book, Icon::Moon, Icon::Stop, Icon::Script, Icon::Record, Icon::Download,
         
         Icon::Recorder, Icon::Screen, Icon::AppWindow, Icon::Area, Icon::Camera, Icon::Mic, Icon::Bell, Icon::Message,
         Icon::Ai, Icon::OpenAi, Icon::Claude, Icon::OpenCode, Icon::Gemini, Icon::Antigravity, Icon::Cursor, Icon::Copilot, Icon::Kimi, Icon::Zai,
