@@ -18,6 +18,7 @@ mod downloader_live;
 pub mod http;
 pub mod ielts;
 pub mod imaging;
+pub mod kuis;
 pub mod location;
 pub mod lyrics;
 pub mod media;

@@ -767,6 +767,11 @@ pub struct Gfx {
     icon_geoms: HashMap<Icon, Vec<(ID2D1PathGeometry, bool)>>,
     /// Bitmaps used during the current frame (others are evicted at `end`).
     used_bitmaps: Vec<u64>,
+    /// SVG documents for [`Canvas::svg`] by text and ink (made on `main`, so
+    /// they start over with it), and those drawn this frame. Empty until the
+    /// Kuis page draws its first formula.
+    svgs: HashMap<u64, ID2D1SvgDocument>,
+    used_svgs: Vec<u64>,
     /// Whether each pushed shape mask really pushed a layer (to balance pops).
     mask_stack: Vec<bool>,
     /// Offscreen layers for [`Canvas::layered`], reused frame to frame.
@@ -924,6 +929,8 @@ impl Gfx {
                 bitmaps: HashMap::new(),
                 icon_geoms: HashMap::new(),
                 used_bitmaps: Vec::new(),
+                svgs: HashMap::new(),
+                used_svgs: Vec::new(),
                 mask_stack: Vec::new(),
                 layers: Vec::new(),
                 layers_used: 0,
@@ -1053,6 +1060,7 @@ impl Gfx {
         self.rt = main.clone();
         self.main = main;
         self.bitmaps.clear();
+        self.svgs.clear();
         self.layers.clear();
         self.shadows.clear();
         Ok(())
@@ -1241,6 +1249,7 @@ impl Gfx {
     pub fn begin(&mut self, dirty: RECT) -> Result<Canvas<'_>> {
         self.ensure_gpu();
         self.used_bitmaps.clear();
+        self.used_svgs.clear();
         self.layers_used = 0;
         self.frame_no += 1;
         let full = RECT { left: 0, top: 0, right: self.surf_w, bottom: self.surf_h };
@@ -1307,6 +1316,11 @@ impl Gfx {
         if self.bitmaps.len() > 48 {
             let used = std::mem::take(&mut self.used_bitmaps);
             self.bitmaps.retain(|k, _| used.contains(k));
+        }
+        // A question's formulas are about a dozen; the last question's go.
+        if self.svgs.len() > 24 {
+            let used = std::mem::take(&mut self.used_svgs);
+            self.svgs.retain(|k, _| used.contains(k));
         }
         if self.frame_no % 120 == 0 || self.layouts.len() > 1500 {
             let keep_after = self.frame_no.saturating_sub(if self.layouts.len() > 1500 { 2 } else { 240 });
@@ -1520,6 +1534,39 @@ impl Gfx {
         };
         self.bitmaps.insert(img.id, bmp.clone());
         Ok(bmp)
+    }
+
+    /// The SVG document for `svg` painted `ink` (opaque), made the first time
+    /// it is drawn, and the target's SVG interface to draw it with. Asking
+    /// for `ID2D1DeviceContext5` here, not at start, keeps Direct2D's SVG
+    /// reader unloaded until a formula is on screen. None where Windows has
+    /// no SVG support (before 10 1703) or the SVG doesn't parse.
+    fn svg_doc(&mut self, svg: &str, size: (f32, f32), ink: Color) -> Option<(ID2D1DeviceContext5, ID2D1SvgDocument)> {
+        use std::hash::{Hash, Hasher};
+        let dc = self.rt.cast::<ID2D1DeviceContext5>().ok()?;
+        let hex = format!("#{:02x}{:02x}{:02x}", (ink.r.clamp(0.0, 1.0) * 255.0).round() as u8, (ink.g.clamp(0.0, 1.0) * 255.0).round() as u8, (ink.b.clamp(0.0, 1.0) * 255.0).round() as u8);
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        (svg, &hex).hash(&mut h);
+        let key = h.finish();
+        self.used_svgs.push(key);
+        if let Some(doc) = self.svgs.get(&key) {
+            return Some((dc, doc.clone()));
+        }
+        let text = svg.replace("currentColor", &hex);
+        let made = unsafe {
+            let stream = windows::Win32::UI::Shell::SHCreateMemStream(Some(text.as_bytes()))?;
+            self.main.cast::<ID2D1DeviceContext5>().and_then(|m| m.CreateSvgDocument(&stream, D2D_SIZE_F { width: size.0, height: size.1 }))
+        };
+        match made {
+            Ok(doc) => {
+                self.svgs.insert(key, doc.clone());
+                Some((dc, doc))
+            }
+            Err(e) => {
+                crate::pwarn!("gfx: an SVG didn't load ({e})");
+                None
+            }
+        }
     }
 
     /// Build Direct2D geometry from parsed SVG segments.
@@ -2043,6 +2090,43 @@ impl<'a> Canvas<'a> {
                 } else {
                     self.g.rt.DrawGeometry(geo, &self.g.brush, icons::STROKE, &self.g.round_stroke);
                 }
+            }
+            self.g.rt.SetTransform(&prev);
+        }
+    }
+
+    /// Draw an SVG document whose root is `size` px (its width and height),
+    /// scaled by `s` with its top left at `at`, `currentColor` painted
+    /// `color`: ihz.app's formulas on the Kuis page (`poni_core::kuis`).
+    /// Nothing is drawn where Windows can't read SVG.
+    pub fn svg(&mut self, svg: &str, size: (f32, f32), at: Point, s: f32, color: Color) {
+        let ink = self.g.look.paint_text(color);
+        let opacity = (ink.a * self.alpha).clamp(0.0, 1.0);
+        if opacity <= 0.0 || s <= 0.0 {
+            return;
+        }
+        let Some((dc, doc)) = self.g.svg_doc(svg, size, ink) else { return };
+        unsafe {
+            let prev = self.save_transform();
+            let m = Matrix3x2 { M11: s, M12: 0.0, M21: 0.0, M22: s, M31: at.x, M32: at.y };
+            self.g.rt.SetTransform(&(m * prev));
+            // A see-through colour, or the page fading: the whole formula at once.
+            let fade = opacity < 0.999;
+            if fade {
+                let params = D2D1_LAYER_PARAMETERS {
+                    contentBounds: D2D_RECT_F { left: 0.0, top: 0.0, right: size.0, bottom: size.1 },
+                    geometricMask: ManuallyDrop::new(None),
+                    maskAntialiasMode: D2D1_ANTIALIAS_MODE_PER_PRIMITIVE,
+                    maskTransform: Matrix3x2::identity(),
+                    opacity,
+                    opacityBrush: ManuallyDrop::new(None),
+                    layerOptions: D2D1_LAYER_OPTIONS_NONE,
+                };
+                self.g.rt.PushLayer(&params, None::<&ID2D1Layer>);
+            }
+            dc.DrawSvgDocument(&doc);
+            if fade {
+                self.g.rt.PopLayer();
             }
             self.g.rt.SetTransform(&prev);
         }

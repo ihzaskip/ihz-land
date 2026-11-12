@@ -307,8 +307,23 @@ pub const IELTS: Addon = Addon {
     files: &[],
 };
 
+/// Kuis: one JISPA math question at a time on the Kuis page
+/// (`crate::kuis`), from ihz.app through the signed-in account, its
+/// formulas drawn from the SVG ihz.app makes. Its code is in the app, so
+/// there is nothing to download. Off, there is no Kuis tab and nothing is
+/// asked; on, a question is asked only when the page opens without one or
+/// on Soal berikutnya. Windows only for now (the Mac app has no SVG drawing).
+pub const KUIS: Addon = Addon {
+    id: "kuis",
+    title: "Kuis",
+    blurb: "JISPA math questions, one at a time, from ihz.app.",
+    mac_blurb: Some("Windows only for now."),
+    tag: "",
+    files: &[],
+};
+
 /// Every add-on, in the order the Add-ons page lists them.
-pub const ALL: [&Addon; 9] = [&PRAYER_TIMES, &JAPANESE_READINGS, &SCRIPT_READER, &SYSTEM, &CAFFEINE, &SCREEN_RECORDER, &AI_USAGE, &IELTS, &DOWNLOADER];
+pub const ALL: [&Addon; 10] = [&PRAYER_TIMES, &JAPANESE_READINGS, &SCRIPT_READER, &SYSTEM, &CAFFEINE, &SCREEN_RECORDER, &AI_USAGE, &IELTS, &KUIS, &DOWNLOADER];
 
 /// Whether Japanese readings switch themselves on for a song whose kanji went
 /// unread for want of them (`wants`): only while the person reads
@@ -539,7 +554,7 @@ mod tests {
     fn add_ons_are_listed_in_order_each_with_its_own_id() {
         // The Add-ons page's order.
         let ids: Vec<&str> = ALL.iter().map(|a| a.id).collect();
-        assert_eq!(ids, ["sholat", "ja", "script", "system", "caffeine", "recorder", "ai", "ielts", "downloader"]);
+        assert_eq!(ids, ["sholat", "ja", "script", "system", "caffeine", "recorder", "ai", "ielts", "kuis", "downloader"]);
         for (i, a) in ALL.iter().enumerate() {
             // The key in settings.json and the folder's name.
             assert!(!a.id.is_empty() && a.id.bytes().all(|b| b.is_ascii_lowercase()), "{}", a.id);

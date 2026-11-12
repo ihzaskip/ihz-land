@@ -743,6 +743,15 @@ fn seed_ielts(st: &mut AppState, scene: Scene, now: f64) {
     st.ielts = Coach::sample(shows, now);
 }
 
+/// The Kuis page's question, from the file PONI_SELFTEST_KUIS names; a
+/// wrong pick in `KuisAnswered`. Without the file the page waits for one
+/// (nothing is asked of ihz.app in the self-test).
+fn seed_kuis(st: &mut AppState, scene: Scene) {
+    let question = std::env::var_os("PONI_SELFTEST_KUIS").and_then(|p| fs::read_to_string(p).ok()).and_then(|b| poni_core::kuis::parse(&b));
+    let picked = question.as_ref().filter(|_| scene == Scene::KuisAnswered).map(|q| (q.answer + 1) % q.choices.len());
+    st.kuis = poni_core::kuis::Quiz { loading: question.is_none(), question, picked, problem: None };
+}
+
 /// Prayer times for its scenes: on, in Kota Jakarta (Edinburgh, picked by
 /// hand, for `PrayerWorld`), its clock 8 minutes before today's Ashar (the
 /// real lists arrive with the add-on's download; these few places are
@@ -1000,6 +1009,8 @@ enum Scene {
     IeltsResult,
     /// IELTS: Windows' privacy switch keeps the microphone from desktop apps.
     IeltsMicDenied,
+    /// Kuis: the question marked after a wrong pick, with the explanation.
+    KuisAnswered,
     /// Settings with Today and Tasks taken off the tab row: their chips
     /// struck through, the header's row without them.
     SettingsTabs,
@@ -1122,7 +1133,7 @@ const SAMPLE_SCRIPT: &str = "Hi everyone, this one takes two minutes. Today I'll
 Drop any file on the island and it waits on the Shelf. Press the phone button, scan the code, and the file is on your phone. \
 No cable, no account, nothing to install on the phone.\n\nThat's it. Thanks for watching.";
 
-const SCENES: [Scene; 110] = [
+const SCENES: [Scene; 112] = [
     Scene::IdleClock,
     Scene::IdleEyes,
     Scene::Media,
@@ -1259,6 +1270,11 @@ const SCENES: [Scene; 110] = [
     Scene::IeltsCueCard,
     Scene::IeltsResult,
     Scene::IeltsMicDenied,
+    // The Kuis add-on: a question, then marked after a wrong pick. Its
+    // question is the file PONI_SELFTEST_KUIS names (an ihz.app answer,
+    // crates/poni-core/data/kuis-sample.json); without one, the page waits.
+    Scene::Page(PageKind::Kuis),
+    Scene::KuisAnswered,
     // Settings' tabs row with two of the island's pages off the row, then in
     // the Store copy, with Notifications' chip.
     Scene::SettingsTabs,
@@ -1374,6 +1390,7 @@ impl Scene {
             Scene::IeltsCueCard => "page-ielts-cue-card".into(),
             Scene::IeltsResult => "page-ielts-result".into(),
             Scene::IeltsMicDenied => "page-ielts-mic-denied".into(),
+            Scene::KuisAnswered => "page-kuis-answered".into(),
             Scene::PrayerMuhammadiyah => "page-prayer-muhammadiyah".into(),
             Scene::PrayerPickerFollow => "page-prayer-picker-follow".into(),
             Scene::IslandDrag => "island-dragged".into(),
@@ -1423,6 +1440,7 @@ impl Scene {
             Scene::IeltsSignedOut | Scene::IeltsTalking | Scene::IeltsRecording | Scene::IeltsCueCard | Scene::IeltsResult | Scene::IeltsMicDenied => {
                 Some(PageKind::Ielts)
             }
+            Scene::KuisAnswered => Some(PageKind::Kuis),
             Scene::IslandOpenAtEdge => Some(PageKind::Media),
             Scene::CaffeineKinds | Scene::CaffeineAdd | Scene::CaffeineEmpty | Scene::CaffeineLate => Some(PageKind::Caffeine),
             _ => None,
@@ -1483,6 +1501,8 @@ impl Scene {
                 | Scene::IeltsCueCard
                 | Scene::IeltsResult
                 | Scene::IeltsMicDenied
+                | Scene::Page(PageKind::Kuis)
+                | Scene::KuisAnswered
         )
     }
 
@@ -3254,7 +3274,8 @@ impl SelfTest {
         st.notify_can = scene.page() == Some(PageKind::Notifications) || matches!(scene, Scene::MessageNotice | Scene::MessageHidden | Scene::SettingsTabsStore);
         let ielts = scene.page() == Some(PageKind::Ielts);
         let caffeine = scene.page() == Some(PageKind::Caffeine);
-        for (id, on) in [(SYSTEM.id, system), (IELTS.id, ielts), (CAFFEINE.id, caffeine)] {
+        let kuis = scene.page() == Some(PageKind::Kuis);
+        for (id, on) in [(SYSTEM.id, system), (IELTS.id, ielts), (CAFFEINE.id, caffeine), (poni_core::addons::KUIS.id, kuis)] {
             st.settings.set_addon(id, on);
             st.addons.insert(id, if on { AddonStatus::Ready } else { AddonStatus::Off });
         }
@@ -3269,6 +3290,7 @@ impl SelfTest {
         seed_downloads(st, scene);
         seed_notifications(st, scene);
         seed_ielts(st, scene, now);
+        seed_kuis(st, scene);
         if scene.media_playing() {
             st.lyrics.wants_ja_readings = self.lyrics.wants_ja_readings || matches!(scene, Scene::JaOffer | Scene::JaGetting);
         }

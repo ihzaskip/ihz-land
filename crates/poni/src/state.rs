@@ -677,6 +677,8 @@ pub struct AppState {
     pub usage: UsageState,
     /// The IELTS page's session with Oyen (the IELTS add-on).
     pub ielts: poni_core::ielts::Coach,
+    /// The Kuis page's question (the Kuis add-on).
+    pub kuis: poni_core::kuis::Quiz,
     /// Side effects requested during the frame.
     pub cmds: Vec<Command>,
 }
@@ -756,6 +758,7 @@ impl AppState {
             notify_can: false,
             usage: UsageState::default(),
             ielts: Default::default(),
+            kuis: Default::default(),
             cmds: Vec::new(),
         };
         // A list from a hand-edited file keeps to codes, each once, ten at most.
@@ -779,6 +782,7 @@ impl AppState {
             PageKind::Record => !st.record_on(),
             PageKind::Notifications => !st.notifications_on(),
             PageKind::Ielts => !st.ielts_on(),
+            PageKind::Kuis => !st.kuis_on(),
             PageKind::Ai => !st.ai_usage_on(),
             p => st.tab_hidden(p),
         };
@@ -866,6 +870,11 @@ impl AppState {
     /// card).
     pub fn ielts_on(&self) -> bool {
         self.addon(poni_core::addons::IELTS.id) == AddonStatus::Ready
+    }
+
+    /// Kuis is on: its tab shows. Windows only (the Mac app draws no SVG).
+    pub fn kuis_on(&self) -> bool {
+        cfg!(windows) && self.addon(poni_core::addons::KUIS.id) == AddonStatus::Ready
     }
 
     /// AI usage is on: the AI tab shows and its readers may run.

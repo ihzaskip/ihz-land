@@ -187,6 +187,9 @@ pub enum Command {
     Pair(PairCmd),
     Oyenza(OyenzaCmd),
     Ielts(IeltsCmd),
+    /// The Kuis page wants a question: on opening without one, Soal
+    /// berikutnya, Coba lagi (the answer: `AppEvent::Kuis`).
+    KuisNext,
     /// Get one of Prayer times' online city files ("ed", "near/55_-5"; the
     /// answer: `AppEvent::Cities`).
     GetCities(String),

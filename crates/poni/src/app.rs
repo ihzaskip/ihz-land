@@ -2499,6 +2499,7 @@ impl App {
             AppEvent::AdzanEnded => self.adzan_ended(),
             AppEvent::Download { id, line } => self.download_line(id, line),
             AppEvent::DownloadEnded { id, ok } => self.download_ended(id, ok),
+            AppEvent::Kuis(got) => self.st.kuis.came(*got),
             AppEvent::Ielts(reply) => {
                 let fx = self.st.ielts.reply(*reply, now);
                 self.ielts_do(fx);
@@ -3354,6 +3355,7 @@ impl App {
             PageKind::Downloads => !self.st.downloader_on(),
             PageKind::Notifications => !self.st.notifications_on(),
             PageKind::Ielts => !self.st.ielts_on(),
+            PageKind::Kuis => !self.st.kuis_on(),
             PageKind::Ai => !self.st.ai_usage_on(),
             _ => false,
         };
@@ -4471,6 +4473,14 @@ impl App {
                 Command::Oyenza(c) => self.oyenza(c),
                 Command::Usage(c) => self.usage_cmd(c),
                 Command::Ielts(c) => self.ielts_cmd(c),
+                // Nothing leaves the PC in the self-test: its pictures are seeded.
+                Command::KuisNext => {
+                    if self.selftest.is_none() && !self.st.kuis.loading {
+                        self.st.kuis.loading = true;
+                        self.st.kuis.problem = None;
+                        services::kuis::fetch(self.sink.clone());
+                    }
+                }
                 // The self-test's pictures use the files it seeds (none from the website).
                 Command::GetCities(file) => {
                     if self.selftest.is_none() {

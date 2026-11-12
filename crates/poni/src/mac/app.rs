@@ -1749,6 +1749,7 @@ impl App {
                 self.ielts_voice_ended();
             }
             AppEvent::MicFailed(why) => self.ielts_mic_failed(why),
+            AppEvent::Kuis(_) => {}
             AppEvent::Update(services::update::UpdateEvent::Checked(r)) => {
                 let open = self.updater.as_mut().is_some_and(|u| u.checked(&mut self.st, r, crate::updates::unix_now()));
                 self.schedule_update();
@@ -2941,6 +2942,8 @@ impl App {
                 Command::OpenSettings => self.show_settings(),
                 Command::Usage(c) => self.usage_cmd(c),
                 Command::Ielts(c) => self.ielts_cmd(c),
+                // Kuis is Windows only (`AppState::kuis_on`).
+                Command::KuisNext => {}
             }
         }
         self.sync_phone_offer();

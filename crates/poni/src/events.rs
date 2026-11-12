@@ -168,6 +168,8 @@ pub enum AppEvent {
     Backdrop,
     /// The IELTS worker's answer (`services::ielts`).
     Ielts(Box<poni_core::ielts::Reply>),
+    /// A Kuis question, or why none came (`services::kuis`).
+    Kuis(Box<Result<poni_core::kuis::Question, poni_core::kuis::Problem>>),
     /// Oyen's clip finished playing, or couldn't play on (`services::voice`).
     VoiceEnded,
     /// The microphone stopped mid-answer (`services::mic`): why, for the log.
