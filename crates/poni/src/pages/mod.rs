@@ -17,6 +17,7 @@ pub mod downloads;
 pub mod downloads_offer;
 pub mod focus;
 pub mod ielts;
+pub mod kuis;
 pub mod media;
 pub mod notifications;
 pub mod prayer;
@@ -66,6 +67,9 @@ pub enum PageKind {
     /// The IELTS add-on's page, while it is on ([`tabs`]): Pulo as an IELTS
     /// Speaking examiner, through the signed-in account.
     Ielts,
+    /// The Kuis add-on's page, while it is on ([`tabs`]): one JISPA math
+    /// question at a time from ihz.app.
+    Kuis,
     /// The System add-on's page, while it is on ([`tabs`]).
     System,
     /// The teleprompter: a script read under the webcam.
@@ -95,7 +99,7 @@ pub enum PageKind {
 impl PageKind {
     /// The tab row's order: the island's own pages, then the add-ons'
     /// pages and the "+".
-    pub const ALL: [PageKind; 17] = [
+    pub const ALL: [PageKind; 18] = [
         PageKind::Media,
         PageKind::Today,
         PageKind::Shelf,
@@ -103,6 +107,7 @@ impl PageKind {
         PageKind::Focus,
         PageKind::Ai,
         PageKind::Ielts,
+        PageKind::Kuis,
         PageKind::System,
         PageKind::Script,
         PageKind::Record,
@@ -121,6 +126,7 @@ impl PageKind {
             PageKind::Focus => "focus",
             PageKind::Ai => "ai",
             PageKind::Ielts => "ielts",
+            PageKind::Kuis => "kuis",
             PageKind::Shelf => "shelf",
             PageKind::Tasks => "tasks",
             PageKind::Today => "today",
@@ -148,6 +154,7 @@ impl PageKind {
             PageKind::Focus => "Focus",
             PageKind::Ai => "AI",
             PageKind::Ielts => "IELTS",
+            PageKind::Kuis => "Kuis",
             PageKind::Shelf => "Shelf",
             PageKind::Tasks => "Tasks",
             PageKind::Today => "Today",
@@ -170,6 +177,7 @@ impl PageKind {
             PageKind::Focus => Icon::Timer,
             PageKind::Ai => Icon::Ai,
             PageKind::Ielts => Icon::Mic,
+            PageKind::Kuis => Icon::CheckCircle,
             PageKind::Shelf => Icon::Tray,
             PageKind::Tasks => Icon::ListChecks,
             PageKind::Today => Icon::Calendar,
@@ -249,6 +257,7 @@ fn row(st: &AppState, open: Option<PageKind>) -> Vec<PageKind> {
         .into_iter()
         .filter(|&p| match p {
             PageKind::Ielts => st.ielts_on(),
+            PageKind::Kuis => st.kuis_on(),
             PageKind::Ai => st.ai_usage_on(),
             PageKind::System => st.system_on(),
             PageKind::Quran => st.quran_on(),
@@ -278,6 +287,7 @@ pub fn content_height(p: PageKind, st: &AppState) -> f32 {
         PageKind::Focus => focus::height(st),
         PageKind::Ai => usage::height(st),
         PageKind::Ielts => ielts::height(st),
+        PageKind::Kuis => kuis::height(st),
         PageKind::Shelf => shelf::height(st),
         PageKind::Tasks => tasks::height(st),
         PageKind::Today => today::height(st),
@@ -417,6 +427,7 @@ pub(crate) fn draw_page(ui: &mut Ui, st: &mut AppState, area: Rect, page: PageKi
         PageKind::Focus => focus::draw(ui, st, area),
         PageKind::Ai => usage::draw(ui, st, area),
         PageKind::Ielts => ielts::draw(ui, st, area),
+        PageKind::Kuis => kuis::draw(ui, st, area),
         PageKind::Shelf => shelf::draw(ui, st, area),
         PageKind::Tasks => tasks::draw(ui, st, area),
         PageKind::Today => today::draw(ui, st, area),
