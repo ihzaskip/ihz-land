@@ -267,6 +267,7 @@ fn draw_session(ui: &mut Ui, st: &mut AppState, area: Rect, a: &mut Anim, fr: &F
 
     // The lyrics: Classic's column, as Classic draws it, with its offer of
     // the Japanese readings add-on.
+    let mut open_pick = false;
     let mut open_credit = false;
     let mut synced_shown = false;
     let mut get_ja_readings = false;
@@ -279,6 +280,7 @@ fn draw_session(ui: &mut Ui, st: &mut AppState, area: Rect, a: &mut Anim, fr: &F
         synced_shown = out.synced;
         open_credit = out.open_credit;
         get_ja_readings = out.get_ja_readings;
+        open_pick = out.open_picker;
     }
 
     // The equalizer dances only on the frames the page gets anyway while
@@ -312,6 +314,9 @@ fn draw_session(ui: &mut Ui, st: &mut AppState, area: Rect, a: &mut Anim, fr: &F
     if get_ja_readings {
         st.settings.set_addon(addons::JAPANESE_READINGS.id, true);
         st.cmd(Command::SaveSettings);
+    }
+    if open_pick {
+        classic::open_picker(ui, st);
     }
 }
 

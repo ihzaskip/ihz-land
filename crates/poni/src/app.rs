@@ -2494,6 +2494,7 @@ impl App {
             }
             AppEvent::Located(found) => self.on_located(found),
             AppEvent::Cities { file, got } => pages::prayer::cities_came(&mut self.st, file, got),
+            AppEvent::LyricsSearch { text, result } => pages::media::search_came(&mut self.st, &text, result),
             AppEvent::Notify(ev) => self.on_notify(ev),
             AppEvent::Usage(ev) => self.on_usage(ev),
             AppEvent::AdzanEnded => self.adzan_ended(),
@@ -4472,6 +4473,14 @@ impl App {
                 Command::Usage(c) => self.usage_cmd(c),
                 Command::Ielts(c) => self.ielts_cmd(c),
                 // The self-test's pictures use the files it seeds (none from the website).
+                Command::Lyrics(c) => {
+                    if let (Some(svc), Some(m)) = (self.services.as_ref(), self.st.media.clone()) {
+                        if !matches!(c, crate::commands::LyricsCmd::Search(_)) {
+                            self.st.lyrics = LyricsState { track_key: m.track_key.clone(), status: LyricsStatus::Loading, ..Default::default() };
+                        }
+                        svc.lyrics_cmd(&m, c);
+                    }
+                }
                 Command::GetCities(file) => {
                     if self.selftest.is_none() {
                         services::cities::fetch(file, self.sink.clone());

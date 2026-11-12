@@ -15,6 +15,17 @@ pub enum MediaCmd {
     Prepare,
 }
 
+/// The Music page's lyrics picker, for the playing song.
+#[derive(Clone, Debug, PartialEq)]
+pub enum LyricsCmd {
+    /// Search LRCLIB for these words (`AppEvent::LyricsSearch`).
+    Search(String),
+    /// Show this record for the song from now on; `None`: no lyrics.
+    Pin(Option<poni_core::lrclib::LrclibRecord>),
+    /// Back to the automatic lookup.
+    Unpin,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Sound {
     /// Gentle chime (timer finished, reminder).
@@ -124,6 +135,7 @@ pub enum IeltsCmd {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Command {
     Media(MediaCmd),
+    Lyrics(LyricsCmd),
     /// Open a file/folder with its default handler.
     OpenPath(String),
     /// Show a file in Explorer.

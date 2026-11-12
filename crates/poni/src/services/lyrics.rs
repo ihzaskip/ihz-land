@@ -25,6 +25,10 @@
 //! A plain-only answer doesn't end steps 4-7: it is kept while the later
 //! steps look for a synced copy of the song.
 //!
+//! A song picked by hand on the Music page (`pinned\<cache_key>.json`)
+//! skips all of that: its lyrics, or "no lyrics", until put back on
+//! automatic. The picker's searches run here too, only when asked.
+//!
 //! Synced lyrics whose recording is much longer or shorter than what plays
 //! (a music video's intro, a radio edit) are shown unsynced.
 //!
@@ -49,6 +53,8 @@ use pure::{duration_secs, is_fresh, lyrics_for, prune_victims, retry_delay, usab
 // LRCLIB asks apps to say who they are.
 const USER_AGENT: &str = concat!("ihzland/", env!("CARGO_PKG_VERSION"), " (+https://github.com/ihzaskip/ihz-land)");
 const SOURCE: &str = "LRCLIB";
+/// Lyrics the user picked for this song on the Music page.
+const PINNED_SOURCE: &str = "LRCLIB, picked by you";
 const APPLE_SOURCE: &str = "Apple Music";
 /// Minimum gap between two requests to LRCLIB.
 const MIN_GAP: Duration = Duration::from_secs(1);
@@ -100,17 +106,7 @@ impl LyricsService {
     /// Queue a lookup for `s` and return immediately (UI thread safe). The
     /// answer arrives as `AppEvent::Lyrics` with `s.track_key`.
     pub fn request(&self, s: &MediaSession) {
-        let job = Job {
-            track_key: s.track_key.clone(),
-            query: TrackQuery {
-                title: s.title.clone(),
-                artist: s.artist.clone(),
-                album: s.album.clone(),
-                duration_s: duration_secs(s.timeline.duration_s),
-            },
-            browser: nowplaying::is_browser(&s.app_id),
-            attempt: 0,
-        };
+        let job = Job { track_key: s.track_key.clone(), query: query_for(s), browser: nowplaying::is_browser(&s.app_id), attempt: 0 };
         {
             let mut q = self.shared.lock();
             q.newest_key = job.track_key.clone();
@@ -118,6 +114,27 @@ impl LyricsService {
             q.retry = None;
         }
         self.shared.cv.notify_all();
+    }
+
+    /// The Music page's picker: search LRCLIB for `text`. The answer arrives
+    /// as `AppEvent::LyricsSearch`; a newer search replaces a queued one.
+    pub fn search(&self, text: String) {
+        self.shared.lock().search = Some(text);
+        self.shared.cv.notify_all();
+    }
+
+    /// From now on `s`'s song shows `record` (`None`: no lyrics), whatever
+    /// the automatic lookup would find; `s` is looked up again at once.
+    pub fn pin(&self, s: &MediaSession, record: Option<LrclibRecord>) {
+        let path = pin_path(&crate::paths::lyrics_cache_dir(), &query_for(s));
+        write_cache(&path, &CacheEntry::new(record, crate::clock::unix_now()));
+        self.request(s);
+    }
+
+    /// `s`'s song goes back to the automatic lookup.
+    pub fn unpin(&self, s: &MediaSession) {
+        let _ = fs::remove_file(pin_path(&crate::paths::lyrics_cache_dir(), &query_for(s)));
+        self.request(s);
     }
 
     /// The Apple Music token on disk was saved or removed: the worker reloads
@@ -137,6 +154,17 @@ impl Drop for LyricsService {
     }
 }
 
+/// The lookup's question for a media session.
+fn query_for(s: &MediaSession) -> TrackQuery {
+    TrackQuery { title: s.title.clone(), artist: s.artist.clone(), album: s.album.clone(), duration_s: duration_secs(s.timeline.duration_s) }
+}
+
+/// Where the hand-picked lyrics for `q`'s song live: keyed like the cache,
+/// in a folder of its own so pruning the cache never drops them.
+fn pin_path(cache_dir: &Path, q: &TrackQuery) -> PathBuf {
+    cache_dir.join("pinned").join(format!("{}.json", lrclib::cache_key(&lrclib::normalize_query(q))))
+}
+
 // ------------------------------------------------------------------ queue
 
 #[derive(Clone, Debug)]
@@ -154,6 +182,8 @@ enum Work {
     Lookup(Job),
     /// Reload and check the Apple Music token.
     AppleToken,
+    /// The picker's search for these words.
+    Search(String),
 }
 
 #[derive(Default)]
@@ -166,6 +196,8 @@ struct Queue {
     newest_key: String,
     /// The Apple Music token was saved or removed (handled before any job).
     apple_changed: bool,
+    /// The picker's latest search, run after any lookup.
+    search: Option<String>,
     shutdown: bool,
 }
 
@@ -219,6 +251,7 @@ fn worker_main(shared: Arc<Shared>, sink: EventSink) {
         match work {
             Work::Lookup(job) => w.process(job),
             Work::AppleToken => w.apple_token_changed(),
+            Work::Search(text) => w.search_by_hand(text),
         }
     }
 }
@@ -252,6 +285,9 @@ impl Worker {
             }
             if let Some(job) = q.pending.take() {
                 return Some(Work::Lookup(job));
+            }
+            if let Some(text) = q.search.take() {
+                return Some(Work::Search(text));
             }
             let timeout = match &q.retry {
                 Some((at, _)) => {
@@ -329,6 +365,9 @@ impl Worker {
 
     fn lookup(&mut self, job: &Job) -> Result<LyricsResult, Halt> {
         let q = lrclib::normalize_query(&job.query);
+        if let Some(pin) = read_cache(&pin_path(&self.cache_dir, &job.query)) {
+            return Ok(to_result(pin.record.as_ref(), job, PINNED_SOURCE));
+        }
         if q.title.trim().is_empty() {
             // Nothing to search for; answer so the UI doesn't sit on "loading".
             return Ok(LyricsResult::NotFound);
@@ -516,6 +555,23 @@ impl Worker {
             }
             s => Err(self.http_error(job, s)),
         }
+    }
+
+    /// The picker's search: LRCLIB's hits for `text` worth offering. Paced
+    /// like the lookup, never retried, dropped when a newer track comes.
+    fn search_by_hand(&mut self, text: String) {
+        let track_key = self.shared.lock().newest_key.clone();
+        let job = Job { track_key, query: TrackQuery::default(), browser: false, attempt: MAX_RETRIES };
+        let result = match self.call(&job, &lrclib::search_text_url(&text)) {
+            Ok(r) if r.status == 200 => lrclib::parse_search(&r.body).map(lrclib::pick_list).map_err(|e| {
+                crate::pwarn!("lyrics: unreadable /api/search reply: {e}");
+                "Unexpected reply from LRCLIB".to_string()
+            }),
+            Ok(r) => Err(format!("{MSG_HTTP} {}", r.status)),
+            Err(Halt::Failed { msg, .. }) => Err(msg),
+            Err(Halt::Abandoned) => return,
+        };
+        self.sink.send(AppEvent::LyricsSearch { text, result });
     }
 
     /// One paced request. 429s set the shared back-off; a short one is waited

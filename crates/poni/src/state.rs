@@ -85,6 +85,20 @@ impl Default for LyricsState {
     }
 }
 
+/// The Music page's lyrics picker, open for one track.
+#[derive(Clone, Debug, Default)]
+pub struct LyricPick {
+    pub track_key: String,
+    /// The search box.
+    pub query: String,
+    /// The words searched last; their hits are `results`.
+    pub asked: String,
+    /// `None` while LRCLIB is asked (or before the first search).
+    pub results: Option<Result<Vec<poni_core::lrclib::LrclibRecord>, String>>,
+    /// First result row in view.
+    pub scroll: usize,
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct VolumeState {
     pub level: f32,
@@ -606,6 +620,8 @@ pub struct AppState {
     pub unix: i64,
     pub media: Option<MediaSession>,
     pub lyrics: LyricsState,
+    /// The lyrics picker, while it's open.
+    pub lyric_pick: Option<LyricPick>,
     pub pomodoro: Pomodoro,
     pub volume: VolumeState,
     pub power: PowerState,
@@ -721,6 +737,7 @@ impl AppState {
             unix: 0,
             media: None,
             lyrics: LyricsState::default(),
+            lyric_pick: None,
             pomodoro,
             volume: VolumeState::default(),
             power: PowerState::default(),

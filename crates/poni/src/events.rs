@@ -105,6 +105,9 @@ pub enum AppEvent {
     /// Album art finished decoding for a track.
     MediaArt { track_key: String, art: Option<Image> },
     Lyrics { track_key: String, result: LyricsResult },
+    /// The Music page's lyrics picker searched for `text`: the hits worth
+    /// offering, or why there are none.
+    LyricsSearch { text: String, result: Result<Vec<poni_core::lrclib::LrclibRecord>, String> },
     /// The outcome of checking or using the user's Apple Music token.
     AppleMusic(AppleMusicStatus),
     /// Master volume changed (0..=1).

@@ -160,6 +160,17 @@ impl Services {
         }
     }
 
+    /// The Music page's lyrics picker, for `s` (the playing song).
+    pub fn lyrics_cmd(&self, s: &MediaSession, c: crate::commands::LyricsCmd) {
+        use crate::commands::LyricsCmd;
+        let Some(l) = &self.lyrics else { return };
+        match c {
+            LyricsCmd::Search(text) => l.search(text),
+            LyricsCmd::Pin(record) => l.pin(s, record),
+            LyricsCmd::Unpin => l.unpin(s),
+        }
+    }
+
     pub fn oyenza(&self, c: OyenzaCmd) {
         if let Some(o) = &self.oyenza {
             o.send(c);
