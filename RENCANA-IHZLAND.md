@@ -41,8 +41,16 @@ Keputusan user (12 Nov 2026) ada di bawah. Centang tiap langkah setelah selesai.
        Server dan halaman ponsel ada di github.com/ihzaskip/drop-ihz, tapi **belum di-hosting**
        (VPS Hermes sudah tidak ada; Render minta kartu). Sampai di-hosting, pairing ponsel
        belum jalan; phone drop lewat Wi-Fi yang sama tetap jalan. TURN Cloudflare opsional.
-10. [ ] **Kota sholat**: tetap memakai `studio.oyenza.com/places` (keputusan user).
-11. [ ] **Saluran rilis**: GitHub Pages fork (`ihzaskip.github.io/oyenza-studio`),
+10. [x] **Kota sholat**: tetap memakai `studio.oyenza.com/places` (keputusan user).
+11. [~] **Saluran rilis**: GitHub Pages fork (`ihzaskip.github.io/oyenza-studio`),
         environment `release` dengan secret `UPDATE_FEED_KEY`
         (`~/.oyenza-fork-keys/sign.pem`), CI membuat rilis dari tag `v*`.
         Situs `site/` diganti halaman ihz.land sederhana.
+        Sudah: Actions fork aktif, GitHub Pages (build type workflow) hidup di
+        https://ihzaskip.github.io/oyenza-studio/, environment `release` dibuat, aset rilis
+        `ihz-land-Setup-x.exe` / `ihz-land-Setup.exe` / `ihz-land-x-portable.zip`, situs baru,
+        workflow upstream (metrics, store, ytdlp-pin, mac) hanya manual.
+        **Belum**: secret `UPDATE_FEED_KEY` di environment `release` harus diisi user sendiri
+        (lihat README / pesan sesi): `gh secret set UPDATE_FEED_KEY --env release --repo
+        ihzaskip/oyenza-studio < ~/.oyenza-fork-keys/sign.pem`. Belum ada tag/rilis.
+12. [x] **README** ditulis ulang untuk ihz.land (kredit fork MIT), PRIVACY.md dan AGENTS.md disesuaikan.
