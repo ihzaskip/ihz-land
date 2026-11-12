@@ -1,20 +1,18 @@
-# Oyenza Studio brand files
+# ihz.land brand files
 
-Oyenza Studio belongs to the Oyen family. Oyen is the orange cat of the Oyenza logo.
+ihz.land's character is **Pulo**, a small green island hill with a sprout on top. Pulo is an original drawing
+made for this fork; the app draws it in code (`pulo_paths` in `crates/poni/src/oyen.rs`), with the same moods the
+island's character has always had (resting, music, the cursor, the night).
 
 | File | What |
 |---|---|
-| `oyen-mark.svg`, `oyen-mark-white.svg` | Oyen's head in colour and in white, copied unchanged from the Oyenza brand kit |
-| `oyen-poni-logo.svg`, `oyen-poni-logo-512.png` | The logo: an orange tile, the island hanging from its top edge playing music (album cover and equalizer, as on the real island), the white Oyen below |
-| `art/oyen-poni-sit.webp` | Oyen sitting on the island while it plays music (the installer's welcome and finish picture) |
-| `art/oyen-poni-peek.webp` | Oyen peeking over the island while it plays music (README, link preview) |
-| `art/oyen-poni-asleep.webp` | Oyen asleep on the island while it plays music (the website's Oyen theme section) |
-| `art/poses/oyen-*.webp` | Oyen with each page's prop: music, focus, health, shelf, tasks, clipboard, today, system (a processor chip), games (a controller), prayer (a lantern) (README pictures and website) |
-| `readme-hero.webp` | The README banner: a 200 % screenshot of the website's hero (`site/index.html`), so the README shows the site's type |
+| `pulo-logo.svg`, `pulo-logo-512.png` | The logo: Pulo on a near-black rounded tile, the same picture the app draws as its own icon |
 | `social-preview.png` | The card GitHub shows when the repo link is shared (Settings → General → Social preview) |
 
-`python3 tools/make_brand.py` redraws the logo, `crates/poni/res/poni.ico` and everything in `installer/art` from these files.
+`python tools/make_brand.py` redraws the logo, the share card, `crates/poni/res/poni.ico`, everything in
+`installer/art` and the Mac DMG's background (`installer/mac/dmg`) from the same shapes the app uses.
 
-Drawing Oyen: the head is exactly the shape of the mark, the left ear (viewer's left) is folded forward with a darker underside, and the face has only the two eyes: no mouth, nose, whiskers or blush. Don't redraw Oyen in another style.
+Colours: hill `#1D9E75`, stem `#0F6E56`, leaves `#5DCAA5`, eyes `#04342C`, tile `#171717`.
 
-These files are not covered by the MIT license that covers the code.
+ihz.land is a fork of [Oyenza Studio](https://github.com/lucacadalora/oyenza-studio) (MIT). The Oyenza name, its
+logo and the Oyen character are not part of that license and are not used here.

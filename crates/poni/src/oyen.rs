@@ -1,10 +1,9 @@
-//! The Oyen theme: Oyen, the Oyenza cat, living in the island.
+//! The Pulo theme (`Theme::Oyen` inside, to keep upstream merges small):
+//! Pulo, a small island hill with a sprout, living in the island.
 //!
-//! Oyen is drawn from the Oyenza app's own built face ([`poni_core::oyen`]),
-//! never from a picture, so he is the same character, with the same moods, as
-//! in the app. He peeks over a line near the island's bottom edge the way the
-//! Oyenza Studio logo does, his chin hidden behind it. (The logo's cream paws are
-//! left out: at island size they read as teeth, and Oyen has no mouth.)
+//! Pulo is drawn in code, never from a picture, and takes its eyes and moods
+//! from the mood engine in [`poni_core::oyen`]. It peeks over a line near the
+//! island's bottom edge, its foot hidden behind it.
 //!
 //! Moods only ever follow what the island is doing (resting, music, the
 //! cursor, the night), never an amount of money.
@@ -33,7 +32,7 @@ const LEAF: Color = Color::hex(0x5DCAA5);
 const INK: Color = Color::hex(0x04342C);
 const PINK: Color = Color::hex(oyen::PINK);
 const GREEN: Color = Color::hex(oyen::GREEN);
-/// The Oyenza app icon's ground.
+/// The app icon's ground.
 const ICON_TILE: Color = Color::hex(0x171717);
 /// Shapes that float around the head (thinking dots, z's) are ink on a light
 /// page; on the black island they need to be light.
@@ -444,24 +443,22 @@ fn talk(t: f64, eyes: f64) -> Frame {
     f
 }
 
-/// Oyen whole and still, as on the Oyenza mark: his head `w` DIPs wide, head
-/// and ears centred on `center`. The mark fits a 108-unit square whose
-/// middle is 12 units above its origin.
+/// Pulo whole and still, `w` DIPs wide (its 100 units), the middle of its
+/// height on `center`.
 fn badge(c: &mut Canvas, center: Point, w: f32) {
-    let k = w / MARK_W;
+    let k = w / 100.0;
     let eyes = if w * c.scale() <= 32.0 { SMALL_EYES } else { 1.0 };
     let frame = oyen::frame(Mood::Oyen, 0.0, Input::default(), eyes);
-    draw(c, &frame, Point::new(center.x, center.y + 12.0 * k), k);
+    draw(c, &frame, Point::new(center.x, center.y - PULO_MID * k), k);
 }
 
-/// The Oyenza app's icon, `size` DIPs square and centred on `center`: Oyen on
-/// the icon's near-black tile (catat assets/images/icon.png: his head is
-/// 61.7 % of the tile, his middle 1.3 % below its centre), with the rounded
-/// corners phones give it. Its own colours in every theme.
+/// ihz.land's icon, `size` DIPs square and centred on `center`: Pulo on a
+/// near-black rounded tile, 60 % of its width, as in poni.ico
+/// (tools/make_brand.py). Its own colours in every theme.
 pub fn app_icon(c: &mut Canvas, center: Point, size: f32) {
     let tile = Rect::new(center.x - size / 2.0, center.y - size / 2.0, size, size);
     c.unthemed(|c| c.fill_rrect(tile, size * 0.2237, ICON_TILE));
-    badge(c, Point::new(center.x, center.y + 0.013 * size), 0.617 * size);
+    badge(c, center, 0.6 * size);
 }
 
 /// One frame of the face, the mark's (0, 0) at `origin`, `k` DIPs per unit.
@@ -486,7 +483,7 @@ fn draw_face(c: &mut Canvas, f: &Frame, origin: Point, k: f32, float: Color) {
     let sway = oyen::Affine::rotation_about(-8.0 + 26.0 * (1.0 - f.fold), oyen::Point::new(0.0, PULO_TOP));
     let sprout = |p: oyen::Point| map(sway.apply(p));
     let (stem, leaves, hill) = pulo_paths();
-    c.path(&segs(stem, &sprout), None, Some((FOLD, 3.2 * stroke_k)));
+    c.path(&segs(stem, &sprout), None, Some((FOLD, PULO_STEM_W * stroke_k)));
     c.path(&segs(leaves, &sprout), Some(LEAF), None);
     c.path(&segs(hill, &map), Some(ORANGE), None);
     for s in f.eyes.iter().chain(&f.extras) {
@@ -508,17 +505,22 @@ fn draw_face(c: &mut Canvas, f: &Frame, origin: Point, k: f32, float: Color) {
 /// The hill's top, in mark units (the eyes sit at y 6, the chin at 38.5).
 const PULO_TOP: f64 = -28.0;
 
-/// Pulo's shapes in mark units: the stem (a stroke), the two leaves and the
-/// hill. The hill is as wide as the old head, so every layout still fits.
+/// Pulo's shapes in mark units: the stem (a stroke [`PULO_STEM_W`] wide), the
+/// two leaves and the hill. The hill is as wide as the old head, so every
+/// layout still fits. tools/make_brand.py draws the icon and the installer's
+/// pictures from these same shapes.
+pub const PULO_STEM: &str = "M 0 -26 C -1 -36 0 -44 4 -50";
+pub const PULO_STEM_W: f32 = 3.2;
+pub const PULO_LEAVES: &str = "M 4 -50 C 12 -58 25 -56 30 -48 C 20 -46 11 -46 4 -50 Z M 4 -50 C -3 -59 -16 -59 -21 -52 C -11 -50 -3 -49 4 -50 Z";
+pub const PULO_HILL: &str = "M -50 40 C -48 4 -28 -28 0 -28 C 28 -28 48 4 50 40 Z";
+/// The middle of Pulo's height (y -59 at the leaves .. 40 at the foot).
+pub const PULO_MID: f32 = -9.5;
+
 fn pulo_paths() -> &'static (Path, Path, Path) {
     static PATHS: OnceLock<(Path, Path, Path)> = OnceLock::new();
     PATHS.get_or_init(|| {
         let p = |d: &str| Path::from_svg(d).unwrap_or_default();
-        (
-            p("M 0 -26 C -1 -36 0 -44 4 -50"),
-            p("M 4 -50 C 12 -58 25 -56 30 -48 C 20 -46 11 -46 4 -50 Z M 4 -50 C -3 -59 -16 -59 -21 -52 C -11 -50 -3 -49 4 -50 Z"),
-            p("M -50 40 C -48 4 -28 -28 0 -28 C 28 -28 48 4 50 40 Z"),
-        )
+        (p(PULO_STEM), p(PULO_LEAVES), p(PULO_HILL))
     })
 }
 

@@ -1,34 +1,39 @@
-"""Draw Oyenza Studio's brand files: the app icon, the installer pictures and the logo used in the docs.
+"""Draw ihz.land's brand files: the app icon, the installer pictures and the logo used in the docs.
 
-Oyenza Studio belongs to the Oyen family. Oyen is the orange cat of the Oyenza logo; docs/brand/oyen-mark*.svg are
-that logo, copied unchanged from the brand kit. The logo is an orange tile with Poni's island hanging from its top
-edge, playing music (album cover and equalizer, as on the real island), and the white Oyen below it. The plush Oyen
-pictures in docs/brand/art are the source for the installer's welcome picture.
+The character is Pulo, a small green island hill with a sprout on top. It is drawn from the same
+shapes the app draws it with (`pulo_paths` in crates/poni/src/oyen.rs), in mark units: the hill
+is 100 units wide, its foot at y 40, the sprout's leaves reach y -59, and the eyes sit at y 6.
+The logo is Pulo on a near-black rounded tile, the same picture the app draws as its own icon
+(`oyen::app_icon`).
 
-Run: python3 tools/make_brand.py  (needs Pillow)
+Run: python tools/make_brand.py  (needs Pillow)
 
 Writes:
   crates/poni/res/poni.ico           app, window and tray icon; every size is drawn on its own
   installer/art/wizard-small-*.png   Inno Setup header logo (WizardSmallImageFile)
   installer/art/wizard-*.png         Inno Setup welcome and finish picture (WizardImageFile)
   installer/art/nsis-*.bmp           the same two for installer/poni.nsi
-  docs/brand/oyen-poni-logo.svg      the logo as a vector
-  docs/brand/oyen-poni-logo-512.png
+  docs/brand/pulo-logo.svg           the logo as a vector
+  docs/brand/pulo-logo-512.png
+  docs/brand/social-preview.png      the card GitHub shows when the repo link is shared
+  installer/mac/dmg/background*.png  the picture behind the Mac DMG's window, at 1x and @2x
+                                     (icon spots: tools/mac_dmg_settings.py)
 """
+import math
 import re
 import sys
 from pathlib import Path
 
-from PIL import Image, ImageChops, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parent.parent
 BRAND = ROOT / "docs" / "brand"
 RES = ROOT / "crates" / "poni" / "res"
 ART = ROOT / "installer" / "art"
+FONT = RES / "fonts" / "Outfit-SemiBold.ttf"
 
-ORANGE, FOLD, INK = "#F0892E", "#C9581A", "#171717"
-ISLAND, EQ, SUN = "#0A0A0A", "#FFA24A", "#FFE2B8"
-COVER = [(0.0, "#FFB37A"), (0.45, "#F0708A"), (0.55, "#2B4F86"), (1.0, "#1B2F55")]  # sunset over the sea
+# Pulo's colours (crates/poni/src/oyen.rs): hill, stem, leaves, eyes; the tile.
+HILL, STEM_C, LEAF, INK, TILE = "#1D9E75", "#0F6E56", "#5DCAA5", "#04342C", "#171717"
 ICO_SIZES = [16, 20, 24, 32, 40, 48, 64, 96, 128, 256]
 # Inno Setup picks the file closest to its image area: 100%, 150% and 200% scaling.
 WIZARD_SIZES = [(202, 386), (336, 643), (430, 824)]
@@ -36,22 +41,22 @@ WIZARD_SMALL_SIZES = [58, 77, 97, 116, 124, 143, 159]
 
 # Geometry as fractions of the tile's side T.
 INSET = 0.047  # margin around the tile, of the icon's side
-TILE_R = 0.2245
-ISL_W, ISL_H, ISL_R, ISL_FLARE = 0.655, 0.209, 0.075, 0.041
-EQ_BARS = (0.45, 0.85, 0.6, 1.0)
-EQ_W, EQ_GAP = 0.022, 0.016
-OYEN_W, OYEN_CY = 0.51, 0.667  # white Oyen's width and centre, below the island
-MARK_W, MARK_CY = 104.0, -11.04  # the mark's own width and vertical centre, in its units
+TILE_R = 0.2237
+PULO_W = 0.60  # Pulo's 100 units, of the tile
+PULO_MID = -9.5  # the middle of Pulo's height (y -59 .. 40), in its units
+
+# Pulo, as in crates/poni/src/oyen.rs (pulo_paths).
+STEM = "M 0 -26 C -1 -36 0 -44 4 -50"
+LEAVES = "M 4 -50 C 12 -58 25 -56 30 -48 C 20 -46 11 -46 4 -50 Z M 4 -50 C -3 -59 -16 -59 -21 -52 C -11 -50 -3 -49 4 -50 Z"
+HILL_D = "M -50 40 C -48 4 -28 -28 0 -28 C 28 -28 48 4 50 40 Z"
+STEM_W = 3.2
+EYES = ((-18.2, 6.16), (18.2, 6.16))
+EYE_R, EYE_R_SMALL = 6.76, 8.06  # the small cut for 32 px and below
 
 
-def mark_paths(name: str) -> list[str]:
-    svg = (BRAND / name).read_text()
-    return re.findall(r'<path d="([^"]+)"', svg)
-
-
-def flatten(d: str, steps: int = 16) -> list[list[tuple[float, float]]]:
-    """Absolute M/L/Q/Z path data (all the mark uses) to polygons."""
-    toks = re.findall(r"[MLQZ]|-?\d*\.?\d+(?:e-?\d+)?", d)
+def flatten(d: str, steps: int = 24) -> list[list[tuple[float, float]]]:
+    """Absolute M/L/C/Z path data to polylines (one per subpath)."""
+    toks = re.findall(r"[MLCZ]|-?\d*\.?\d+(?:e-?\d+)?", d)
     polys, pts, i = [], [], 0
     num = lambda k: float(toks[k])
     while i < len(toks):
@@ -63,145 +68,163 @@ def flatten(d: str, steps: int = 16) -> list[list[tuple[float, float]]]:
         elif t == "L":
             pts.append((num(i + 1), num(i + 2)))
             i += 3
-        elif t == "Q":
-            (x0, y0), (cx, cy), (x1, y1) = pts[-1], (num(i + 1), num(i + 2)), (num(i + 3), num(i + 4))
+        elif t == "C":
+            (x0, y0) = pts[-1]
+            x1, y1, x2, y2, x3, y3 = (num(i + k) for k in range(1, 7))
             for s in range(1, steps + 1):
                 u = s / steps
-                pts.append(((1 - u) ** 2 * x0 + 2 * (1 - u) * u * cx + u * u * x1, (1 - u) ** 2 * y0 + 2 * (1 - u) * u * cy + u * u * y1))
-            i += 5
+                a, b, c, e = (1 - u) ** 3, 3 * (1 - u) ** 2 * u, 3 * (1 - u) * u * u, u**3
+                pts.append((a * x0 + b * x1 + c * x2 + e * x3, a * y0 + b * y1 + c * y2 + e * y3))
+            i += 7
         elif t == "Z":
             polys.append(pts)
             pts, i = [], i + 1
         else:
             raise ValueError(f"unexpected path token {t!r}")
+    if pts:
+        polys.append(pts)
     return polys
 
 
-def evenodd(size: tuple[int, int], polys: list[list[tuple[float, float]]]) -> Image.Image:
-    """A mask filled with the even-odd rule, the way the white mark's fold and eyes cut through its head."""
-    mask = Image.new("1", size, 0)
-    for poly in polys:
-        layer = Image.new("1", size, 0)
-        ImageDraw.Draw(layer).polygon(poly, fill=1)
-        mask = ImageChops.logical_xor(mask, layer)
-    return mask.convert("L")
-
-
-def island_points(cx: float, y0: float, w: float, h: float, r: float, f: float) -> str:
-    """Path data for Poni's island: flat top on the edge, flared top corners, rounded bottom corners."""
-    x0, x1 = cx - w / 2, cx + w / 2
-    return (
-        f"M{x0 - f} {y0} Q{x0} {y0} {x0} {y0 + f} L{x0} {y0 + h - r} Q{x0} {y0 + h} {x0 + r} {y0 + h} "
-        f"L{x1 - r} {y0 + h} Q{x1} {y0 + h} {x1} {y0 + h - r} L{x1} {y0 + f} Q{x1} {y0} {x1 + f} {y0} Z"
-    )
-
-
-def gradient(w: int, h: int, stops: list[tuple[float, str]]) -> Image.Image:
-    rgb = [(u, Image.new("RGB", (1, 1), c).getpixel((0, 0))) for u, c in stops]
-    col = Image.new("RGB", (1, max(1, h)))
-    for y in range(h):
-        u = y / max(1, h - 1)
-        (u0, a), (u1, b) = next((rgb[k], rgb[k + 1]) for k in range(len(rgb) - 1) if u <= rgb[k + 1][0] or k == len(rgb) - 2)
-        t = 0 if u1 == u0 else min(1, max(0, (u - u0) / (u1 - u0)))
-        col.putpixel((0, y), tuple(round(a[i] + (b[i] - a[i]) * t) for i in range(3)))
-    return col.resize((max(1, w), max(1, h)))
-
-
-def layout(s: float) -> dict:
-    """Pixel positions of every part on a canvas of side s."""
-    inset = s * INSET
-    t = s - 2 * inset
-    w, h = ISL_W * t, ISL_H * t
-    pad = 0.2 * h
-    art = h - 2 * pad - 0.007 * t
-    art_x, art_y = s / 2 - w / 2 + pad + 0.012 * t, inset + pad
-    bw, gap = EQ_W * t, EQ_GAP * t
-    eq_x = s / 2 + w / 2 - pad - 0.012 * t - (4 * bw + 3 * gap)
-    return dict(inset=inset, t=t, w=w, h=h, art=art, art_x=art_x, art_y=art_y, bw=bw, gap=gap, eq_x=eq_x)
+def draw_pulo(img: Image.Image, cx: float, cy: float, w: float, small: bool = False) -> None:
+    """Pulo `w` px wide (its 100 units), the middle of its height at (cx, cy), drawn onto `img` (RGBA)."""
+    k = w / 100.0
+    ox, oy = cx, cy - PULO_MID * k
+    at = lambda p: (ox + p[0] * k, oy + p[1] * k)
+    d = ImageDraw.Draw(img)
+    # The stem: a round-capped stroke.
+    for poly in flatten(STEM):
+        line = [at(p) for p in poly]
+        r = STEM_W * k / 2
+        d.line(line, fill=STEM_C, width=max(1, round(STEM_W * k)), joint="curve")
+        for x, y in (line[0], line[-1]):
+            d.ellipse((x - r, y - r, x + r, y + r), fill=STEM_C)
+    for poly in flatten(LEAVES):
+        d.polygon([at(p) for p in poly], fill=LEAF)
+    for poly in flatten(HILL_D):
+        d.polygon([at(p) for p in poly], fill=HILL)
+    r = (EYE_R_SMALL if small else EYE_R) * k
+    for p in EYES:
+        x, y = at(p)
+        d.ellipse((x - r, y - r, x + r, y + r), fill=INK)
 
 
 def draw_logo(size: int, ss: int = 8) -> Image.Image:
-    """The logo on a transparent square, drawn large and scaled down for clean edges."""
+    """The logo `size` px square: Pulo on the near-black tile, with a small clear margin (INSET)."""
     s = size * ss
-    L = layout(s)
-    inset, t = L["inset"], L["t"]
-    tile = Image.new("L", (s, s), 0)
-    ImageDraw.Draw(tile).rounded_rectangle([inset, inset, inset + t, inset + t], radius=TILE_R * t, fill=255)
+    inset = s * INSET
+    t = s - 2 * inset
     img = Image.new("RGBA", (s, s), (0, 0, 0, 0))
-    img.paste(ORANGE, (0, 0), tile)
-
-    # The island hangs from the tile's top edge; its flared corners follow the tile's rounded corners.
-    isl = Image.new("L", (s, s), 0)
-    pts = flatten(island_points(s / 2, inset - ss, L["w"], L["h"] + ss, ISL_R * t, ISL_FLARE * t))
-    ImageDraw.Draw(isl).polygon(pts[0], fill=255)
-    img.paste(ISLAND, (0, 0), ImageChops.multiply(isl, tile))
-
-    if size >= 32:  # smaller, the cover and the bars are less than a pixel
-        a, x, y = L["art"], L["art_x"], L["art_y"]
-        cover = gradient(round(a), round(a), COVER).convert("RGBA")
-        d = ImageDraw.Draw(cover)
-        sun = (0.66 * a, 0.5 * a, 0.15 * a)
-        d.pieslice([sun[0] - sun[2], sun[1] - sun[2], sun[0] + sun[2], sun[1] + sun[2]], 180, 360, fill=SUN)
-        d.polygon([(0.24 * a, 0.80 * a), (0.34 * a, 0.56 * a), (0.42 * a, 0.80 * a)], fill="white")
-        round_mask = Image.new("L", cover.size, 0)
-        ImageDraw.Draw(round_mask).rounded_rectangle([0, 0, cover.width - 1, cover.height - 1], radius=0.24 * a, fill=255)
-        img.paste(cover, (round(x), round(y)), round_mask)
-        draw = ImageDraw.Draw(img)
-        cy = y + a / 2
-        for i, k in enumerate(EQ_BARS):
-            bh = a * 0.9 * k
-            bx = L["eq_x"] + i * (L["bw"] + L["gap"])
-            draw.rounded_rectangle([bx, cy - bh / 2, bx + L["bw"], cy + bh / 2], radius=L["bw"] / 2, fill=EQ)
-
-    # White Oyen: the brand kit's white mark, its fold and eyes cut out of the head.
-    k = OYEN_W * t / MARK_W
-    ox, oy = s / 2, inset + OYEN_CY * t - MARK_CY * k
-    polys = [[(ox + px * k, oy + py * k) for px, py in poly] for d in mark_paths("oyen-mark-white.svg") for poly in flatten(d)]
-    img.paste("white", (0, 0), evenodd((s, s), polys))
+    ImageDraw.Draw(img).rounded_rectangle((inset, inset, s - inset, s - inset), radius=TILE_R * t, fill=TILE)
+    draw_pulo(img, s / 2, s / 2, PULO_W * t, small=size <= 32)
     return img.resize((size, size), Image.LANCZOS)
 
 
 def logo_svg() -> str:
     s = 1024.0
-    L = layout(s)
-    inset, t = L["inset"], L["t"]
-    a, x, y = L["art"], L["art_x"], L["art_y"]
-    k = OYEN_W * t / MARK_W
-    stops = "".join(f'<stop offset="{u:g}" stop-color="{c}"/>' for u, c in COVER)
-    bars = "".join(
-        f'<rect x="{L["eq_x"] + i * (L["bw"] + L["gap"]):.1f}" y="{y + a / 2 - a * 0.45 * h:.1f}" width="{L["bw"]:.1f}" '
-        f'height="{a * 0.9 * h:.1f}" rx="{L["bw"] / 2:.1f}" fill="{EQ}"/>'
-        for i, h in enumerate(EQ_BARS)
-    )
-    white = mark_paths("oyen-mark-white.svg")[0]
-    r = 0.15 * a
+    inset = s * INSET
+    t = s - 2 * inset
+    k = PULO_W * t / 100.0
+    ox, oy = s / 2, s / 2 - PULO_MID * k
+    eyes = "".join(f'<circle cx="{x:g}" cy="{y:g}" r="{EYE_R:g}" fill="{INK}"/>' for x, y in EYES)
     return (
-        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {s:g} {s:g}"><title>Oyenza Studio</title>'
-        f'<defs><clipPath id="tile"><rect x="{inset:.1f}" y="{inset:.1f}" width="{t:.1f}" height="{t:.1f}" rx="{TILE_R * t:.1f}"/></clipPath>'
-        f'<linearGradient id="cover" x1="0" y1="0" x2="0" y2="1">{stops}</linearGradient></defs>'
-        f'<g clip-path="url(#tile)"><rect x="0" y="0" width="{s:g}" height="{s:g}" fill="{ORANGE}"/>'
-        f'<path d="{island_points(s / 2, inset - 4, L["w"], L["h"] + 4, ISL_R * t, ISL_FLARE * t)}" fill="{ISLAND}"/></g>'
-        f'<rect x="{x:.1f}" y="{y:.1f}" width="{a:.1f}" height="{a:.1f}" rx="{0.24 * a:.1f}" fill="url(#cover)"/>'
-        f'<path d="M{x + 0.66 * a - r:.1f} {y + 0.5 * a:.1f}a{r:.1f} {r:.1f} 0 0 1 {2 * r:.1f} 0Z" fill="{SUN}"/>'
-        f'<path d="M{x + 0.24 * a:.1f} {y + 0.8 * a:.1f}L{x + 0.34 * a:.1f} {y + 0.56 * a:.1f}L{x + 0.42 * a:.1f} {y + 0.8 * a:.1f}Z" fill="#fff"/>'
-        f"{bars}"
-        f'<g transform="translate({s / 2:.1f} {inset + OYEN_CY * t - MARK_CY * k:.1f}) scale({k:.4f})"><path d="{white}" fill="#fff" fill-rule="evenodd"/></g>'
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {s:g} {s:g}" width="{s:g}" height="{s:g}">\n'
+        f'  <rect x="{inset:g}" y="{inset:g}" width="{t:g}" height="{t:g}" rx="{TILE_R * t:g}" fill="{TILE}"/>\n'
+        f'  <g transform="translate({ox:g} {oy:g}) scale({k:g})">\n'
+        f'    <path d="{STEM}" fill="none" stroke="{STEM_C}" stroke-width="{STEM_W:g}" stroke-linecap="round"/>\n'
+        f'    <path d="{LEAVES}" fill="{LEAF}"/>\n'
+        f'    <path d="{HILL_D}" fill="{HILL}"/>\n'
+        f"    {eyes}\n"
+        "  </g>\n"
         "</svg>\n"
     )
 
 
-def trimmed(path: Path) -> Image.Image:
-    im = Image.open(path).convert("RGBA")
-    return im.crop(im.getchannel("A").point(lambda v: 255 if v > 32 else 0).getbbox())
+def gradient(w: int, h: int, top: str, bottom: str) -> Image.Image:
+    a = Image.new("RGB", (1, 1), top).getpixel((0, 0))
+    b = Image.new("RGB", (1, 1), bottom).getpixel((0, 0))
+    col = Image.new("RGB", (1, h))
+    for y in range(h):
+        u = y / max(1, h - 1)
+        col.putpixel((0, y), tuple(round(a[i] + (b[i] - a[i]) * u) for i in range(3)))
+    return col.resize((w, h))
 
 
-def wizard_image(w: int, h: int, oyen: Image.Image) -> Image.Image:
-    """Welcome/finish picture: Oyen on the island, playing music, on a warm cream field."""
-    img = gradient(w, h, [(0.0, "#FFF6EC"), (1.0, "#FFE3C4")]).convert("RGBA")
-    ow = round(w * 0.88)
-    oh = round(oyen.height * ow / oyen.width)
-    art = oyen.resize((ow, oh), Image.LANCZOS)
-    img.alpha_composite(art, ((w - ow) // 2, round(h * 0.47 - oh / 2)))
+def wordmark(img: Image.Image, text: str, cx: float, cy: float, px: int, fill: str) -> None:
+    font = ImageFont.truetype(str(FONT), px)
+    ImageDraw.Draw(img).text((cx, cy), text, font=font, fill=fill, anchor="mm")
+
+
+def scene(w: int, h: int, ss: int = 4) -> Image.Image:
+    """Pulo on its island at night: the installer's welcome picture and the share card's art."""
+    W, H = w * ss, h * ss
+    img = gradient(W, H, "#101614", "#0B2A23").convert("RGBA")
+    d = ImageDraw.Draw(img)
+    unit = min(W, H * 0.62)
+    pw = unit * 0.62
+    sea = H * 0.70
+    # The sea Pulo stands in, and two light ripples.
+    d.rectangle((0, sea, W, H), fill="#082520")
+    for dx, y, ww in ((-0.33, 0.035, 0.16), (0.30, 0.075, 0.12)):
+        x0 = W / 2 + dx * W - ww * W / 2
+        d.rounded_rectangle((x0, sea + y * H, x0 + ww * W, sea + y * H + 1.6 * ss), radius=ss, fill="#1F5A4B")
+    # Its foot a little under the water line.
+    k = pw / 100
+    draw_pulo(img, W / 2, sea + 4 * k - (40 - PULO_MID) * k, pw)
+    return img.resize((w, h), Image.LANCZOS)
+
+
+def wizard_image(w: int, h: int) -> Image.Image:
+    img = scene(w, h)
+    wordmark(img, "ihz.land", w / 2, h * 0.16, max(12, round(w * 0.15)), "#E9F5F0")
+    return img
+
+
+def social_card() -> Image.Image:
+    w, h = 1280, 640
+    img = gradient(w, h, "#101614", "#0B2A23").convert("RGBA")
+    logo = draw_logo(300, ss=4)
+    img.alpha_composite(logo, (150, (h - 300) // 2))
+    wordmark(img, "ihz.land", 820, 280, 120, "#E9F5F0")
+    font = ImageFont.truetype(str(RES / "fonts" / "Outfit-Regular.ttf"), 40)
+    ImageDraw.Draw(img).text((820, 390), "a living island for your screen", font=font, fill="#9CC9BA", anchor="mm")
+    return img
+
+
+DMG_W, DMG_H = 660, 420  # the DMG window's content, in points (tools/mac_dmg_settings.py)
+DMG_LINES = {
+    "background": ["Once copied, open it from Applications."],
+    "background-test": ["Test build: the first time, open System Settings \u203a Privacy & Security", "and click Open Anyway."],
+}
+
+
+def dmg_art(lines: list[str], scale: int) -> Image.Image:
+    """The DMG window's picture: the headline, an arrow from the app (180, 224) to Applications (480, 224), Pulo."""
+    w, h = DMG_W * scale, DMG_H * scale
+    img = gradient(w, h, "#F4F7F5", "#E3EFE9").convert("RGBA")
+    d = ImageDraw.Draw(img)
+    logo = draw_logo(28 * scale, ss=8)
+    img.alpha_composite(logo, (24 * scale, 22 * scale))
+    font = lambda name, px: ImageFont.truetype(str(RES / "fonts" / name), px * scale)
+    d.text((60 * scale, 36 * scale), "ihz.land", font=font("Outfit-SemiBold.ttf", 17), fill="#171717", anchor="lm")
+    d.text((w / 2, 76 * scale), "Drag ihz.land into Applications.", font=font("Outfit-SemiBold.ttf", 26), fill="#171717", anchor="mm")
+    for i, line in enumerate(lines):
+        d.text((w / 2, (110 + 19 * i) * scale), line, font=font("Outfit-Regular.ttf", 14), fill="#5E6B66", anchor="mm")
+    # The arrow between the two icons, and Pulo on a strip of sea at the bottom, drawn 4x and scaled down.
+    sea = 392 * scale
+    d.rectangle((0, sea, w, h), fill="#BFDDD2")
+    big = Image.new("RGBA", (w * 4, h * 4), (0, 0, 0, 0))
+    bd = ImageDraw.Draw(big)
+    q = 4 * scale
+    arc = [((275 + 110 * u) * q, (232 - 22 * (1 - (2 * u - 1) ** 2)) * q) for u in (i / 60 for i in range(61))]
+    bd.line(arc, fill="#2A3330", width=2 * q, joint="curve")
+    tip, back = arc[-1], math.atan2(arc[-1][1] - arc[-3][1], arc[-1][0] - arc[-3][0]) + math.pi
+    for turn in (-0.55, 0.55):
+        a = back + turn
+        bd.line([(tip[0] + 12 * q * math.cos(a), tip[1] + 12 * q * math.sin(a)), tip], fill="#2A3330", width=2 * q)
+    pw = 74 * q
+    draw_pulo(big, w * 2, sea * 4 + 4 * pw / 100 - (40 - PULO_MID) * pw / 100, pw)
+    img.alpha_composite(big.resize((w, h), Image.LANCZOS))
     return img
 
 
@@ -209,27 +232,31 @@ def main() -> int:
     # App icon: every size drawn on its own.
     icons = {n: draw_logo(n) for n in ICO_SIZES}
     icons[256].save(RES / "poni.ico", format="ICO", sizes=[(n, n) for n in ICO_SIZES], append_images=[icons[n] for n in ICO_SIZES[:-1]])
-    stale = RES / "poni-512.png"
-    if stale.exists():
-        stale.unlink()
 
-    BRAND.joinpath("oyen-poni-logo.svg").write_text(logo_svg())
-    draw_logo(512).save(BRAND / "oyen-poni-logo-512.png", optimize=True)
+    BRAND.mkdir(exist_ok=True)
+    BRAND.joinpath("pulo-logo.svg").write_text(logo_svg(), newline="\n")
+    draw_logo(512).save(BRAND / "pulo-logo-512.png", optimize=True)
+    social_card().convert("RGB").save(BRAND / "social-preview.png", optimize=True)
 
     ART.mkdir(exist_ok=True)
     for n in WIZARD_SMALL_SIZES:
         draw_logo(n).save(ART / f"wizard-small-{n}.png", optimize=True)
-    oyen = trimmed(BRAND / "art" / "oyen-poni-sit.webp")
     for w, h in WIZARD_SIZES:
-        wizard_image(w, h, oyen).convert("RGB").save(ART / f"wizard-{w}x{h}.png", optimize=True)
+        wizard_image(w, h).convert("RGB").save(ART / f"wizard-{w}x{h}.png", optimize=True)
 
     # NSIS (MUI2) only takes 24-bit BMPs: 164x314 welcome/finish picture, 150x57 header.
-    wizard_image(164, 314, oyen).convert("RGB").save(ART / "nsis-welcome.bmp")
+    wizard_image(164, 314).convert("RGB").save(ART / "nsis-welcome.bmp")
     header = Image.new("RGBA", (150, 57), "white")
     header.alpha_composite(draw_logo(48), (150 - 48 - 6, (57 - 48) // 2))
     header.convert("RGB").save(ART / "nsis-header.bmp")
 
-    for p in sorted([RES / "poni.ico", BRAND / "oyen-poni-logo.svg", BRAND / "oyen-poni-logo-512.png", *ART.iterdir()]):
+    dmg = ROOT / "installer" / "mac" / "dmg"
+    dmg.mkdir(parents=True, exist_ok=True)
+    for name, lines in DMG_LINES.items():
+        dmg_art(lines, 1).convert("RGB").save(dmg / f"{name}.png", optimize=True)
+        dmg_art(lines, 2).convert("RGB").save(dmg / f"{name}@2x.png", optimize=True)
+
+    for p in sorted([RES / "poni.ico", BRAND / "pulo-logo.svg", BRAND / "pulo-logo-512.png", BRAND / "social-preview.png", *ART.iterdir()]):
         print(f"{p.relative_to(ROOT)}  {p.stat().st_size} bytes")
     return 0
 

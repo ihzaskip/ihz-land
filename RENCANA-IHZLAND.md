@@ -19,7 +19,7 @@ Keputusan user (12 Nov 2026) ada di bawah. Centang tiap langkah setelah selesai.
 2. [x] **Nama**: semua teks "Oyenza Studio" yang terlihat diganti "ihz.land". Termasuk
        menu, island, Settings, installer NSIS (nama, shortcut, uninstall display name),
        nama file rilis (`ihz-land-Setup-x.exe`), dan User-Agent.
-3. [ ] **Ikon & art**: ikon aplikasi, art installer (`installer/art`), `docs/brand`, situs.
+3. [x] **Ikon & art**: ikon aplikasi, art installer (`installer/art`), `docs/brand`, DMG Mac, menu bar Mac (Pulo di ubin gelap, `tools/make_brand.py`). Situs: langkah 11.
 4. [x] **Karakter orisinal** (Pulo, pulau kecil bertunas) pengganti Oyen (tema dan mood sama: istirahat, musik,
        kursor, malam). Digambar dengan kode, bukan meniru kucing Oyen.
 5. [ ] **Buang fitur akun Oyenza**: tab Oyenza (uang masuk/keluar, tagihan, catat

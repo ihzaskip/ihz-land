@@ -1,4 +1,4 @@
-//! The menu bar item (Oyen's mark) and its menu, also shown on a right-click
+//! The menu bar item (Pulo) and its menu, also shown on a right-click
 //! of the island. It carries what works on the Mac so far; lyrics and the
 //! Apple Music token join it with the music slice.
 
@@ -9,7 +9,7 @@ use objc2_app_kit::{
     NSControlStateValueOff, NSControlStateValueOn, NSImage, NSMenu, NSMenuItem, NSStatusBar, NSStatusItem, NSVariableStatusItemLength,
 };
 use objc2_core_foundation::CGFloat;
-use objc2_core_graphics::{CGBlendMode, CGContext};
+use objc2_core_graphics::{CGBlendMode, CGContext, CGLineCap};
 use objc2_foundation::{NSObject, NSObjectProtocol, NSSize, NSString};
 use crate::state::OyenzaLink;
 use crate::updates::UpdateLine;
@@ -274,9 +274,9 @@ fn build_into(mtm: MainThreadMarker, target: &MenuTarget, items: &[MenuItem], cm
     menu
 }
 
-/// Oyen's mark as a one-colour template image (macOS tints it for light and
-/// dark menu bars). Drawn from the mark's own outlines with the small cut's
-/// eyes, the size the logo uses at 32 px and below.
+/// Pulo as a one-colour template image (macOS tints it for light and dark
+/// menu bars): the hill and leaves filled, the stem stroked and the eyes cut
+/// out, from the shapes the island draws (`crate::oyen`).
 fn mark_image(mtm: MainThreadMarker) -> Option<Retained<NSImage>> {
     const PT: f64 = 18.0;
     const SCALE: f32 = 2.0;
@@ -284,21 +284,29 @@ fn mark_image(mtm: MainThreadMarker) -> Option<Retained<NSImage>> {
     let bmp = crate::gfx::Bitmap::new(px, px, SCALE)?;
     let ctx: &CGContext = bmp.ctx();
     let parse = |d: &str| poni_core::svgpath::parse(d).ok().map(|segs| crate::gfx::cg_path(&segs));
-    let (head, fold, eyes) = (parse(poni_core::oyen::mark::HEAD)?, parse(poni_core::oyen::mark::FOLD)?, parse(poni_core::oyen::mark::EYES_SMALL)?);
-    // The mark is 104 units wide, centred on y -11.04 in its own units.
-    let s = 16.5 / 104.0;
-    CGContext::translate_ctm(Some(ctx), PT / 2.0, PT / 2.0 + 11.04 * s);
+    // The eyes at (-18.2, 6.16) and (18.2, 6.16), the small cut's size.
+    const EYES: &str = "M -26.26 6.16 A 8.06 8.06 0 1 0 -10.14 6.16 A 8.06 8.06 0 1 0 -26.26 6.16 Z M 10.14 6.16 A 8.06 8.06 0 1 0 26.26 6.16 A 8.06 8.06 0 1 0 10.14 6.16 Z";
+    let (stem, leaves, hill, eyes) = (parse(crate::oyen::PULO_STEM)?, parse(crate::oyen::PULO_LEAVES)?, parse(crate::oyen::PULO_HILL)?, parse(EYES)?);
+    // Pulo is 100 units wide; the middle of its height sits on the image's.
+    let s = 16.5 / 100.0;
+    CGContext::translate_ctm(Some(ctx), PT / 2.0, PT / 2.0 - crate::oyen::PULO_MID as f64 * s);
     CGContext::scale_ctm(Some(ctx), s, s);
     CGContext::set_rgb_fill_color(Some(ctx), 0.0, 0.0, 0.0, 1.0);
-    for p in [&head, &fold] {
+    for p in [&hill, &leaves] {
         CGContext::begin_path(Some(ctx));
         CGContext::add_path(Some(ctx), Some(p));
         CGContext::fill_path(Some(ctx));
     }
+    CGContext::set_rgb_stroke_color(Some(ctx), 0.0, 0.0, 0.0, 1.0);
+    CGContext::set_line_width(Some(ctx), (crate::oyen::PULO_STEM_W * 1.4) as CGFloat);
+    CGContext::set_line_cap(Some(ctx), CGLineCap::Round);
+    CGContext::begin_path(Some(ctx));
+    CGContext::add_path(Some(ctx), Some(&stem));
+    CGContext::stroke_path(Some(ctx));
     CGContext::set_blend_mode(Some(ctx), CGBlendMode::Clear);
     CGContext::begin_path(Some(ctx));
     CGContext::add_path(Some(ctx), Some(&eyes));
-    CGContext::eo_fill_path(Some(ctx));
+    CGContext::fill_path(Some(ctx));
     let cg = bmp.image()?;
     let img = NSImage::initWithCGImage_size(NSImage::alloc(), &cg, NSSize::new(PT as CGFloat, PT as CGFloat));
     img.setTemplate(true);

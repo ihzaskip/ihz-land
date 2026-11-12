@@ -7,7 +7,7 @@
 #
 # "test" is the ad-hoc DMG tools/make_mac_app.sh builds, whose window also says how to get past Open Anyway;
 # "signed" is the one tools/sign_mac_dmg.sh builds for Apple to notarize. The window's layout is
-# tools/mac_dmg_settings.py, its picture installer/mac/dmg/ (tools/make_dmg_art.py draws it). dmgbuild writes the
+# tools/mac_dmg_settings.py, its picture installer/mac/dmg/ (tools/make_brand.py draws it). dmgbuild writes the
 # window's settings straight into the DMG, without Finder or AppleScript, so it works on CI's headless Macs. It
 # installs into a throwaway venv unless DMGBUILD names a dmgbuild that is already there; it needs Python 3.10 or
 # newer, which a Mac's /usr/bin/python3 isn't (Homebrew's is).
