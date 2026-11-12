@@ -13,7 +13,9 @@ SetCompressor /SOLID lzma
 
 !define APPNAME "ihz.land"
 !define VERSION "0.2.30"
-!define PUBLISHER "Jatevo Labs"
+!define PUBLISHER "ihz.land"
+; LICENSE's copyright holder.
+!define COPYRIGHT "Jatevo Labs"
 !define UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\Poni"
 !define RUN_KEY "Software\Microsoft\Windows\CurrentVersion\Run"
 
@@ -37,7 +39,7 @@ VIAddVersionKey "CompanyName" "${PUBLISHER}"
 VIAddVersionKey "FileDescription" "ihz.land installer"
 VIAddVersionKey "FileVersion" "${VERSION}"
 VIAddVersionKey "ProductVersion" "${VERSION}"
-VIAddVersionKey "LegalCopyright" "Copyright (C) 2026 ${PUBLISHER}"
+VIAddVersionKey "LegalCopyright" "Copyright (C) 2026 ${COPYRIGHT}"
 
 !include "MUI2.nsh"
 !include "LogicLib.nsh"
@@ -95,9 +97,10 @@ Section "ihz.land" SecMain
   ; The licenses of what poni.exe is built from (mecab-ipadic asks for its notice in every copy).
   File "../THIRD-PARTY-NOTICES.txt"
   WriteUninstaller "$INSTDIR\Uninstall.exe"
-  ; Older shortcuts: "Poni" (0.1.0, 0.1.1) and "Oyen Poni" (0.1.2 to the last 0.1.x).
+  ; Older shortcuts: "Poni" (0.1.0, 0.1.1), "Oyen Poni" (0.1.2 to the last 0.1.x) and "Oyenza Studio" (the original project's 0.2.x).
   Delete "$SMPROGRAMS\Poni.lnk"
   Delete "$SMPROGRAMS\Oyen Poni.lnk"
+  Delete "$SMPROGRAMS\Oyenza Studio.lnk"
   CreateShortcut "$SMPROGRAMS\${APPNAME}.lnk" "$INSTDIR\poni.exe" "" "$INSTDIR\poni.exe" 0
   WriteRegStr HKCU "Software\Poni" "InstallDir" "$INSTDIR"
   WriteRegStr HKCU "${UNINST_KEY}" "DisplayName" "${APPNAME}"
@@ -151,6 +154,7 @@ Section "Uninstall"
   Delete "$SMPROGRAMS\${APPNAME}.lnk"
   Delete "$SMPROGRAMS\Poni.lnk"
   Delete "$SMPROGRAMS\Oyen Poni.lnk"
+  Delete "$SMPROGRAMS\Oyenza Studio.lnk"
   DeleteRegValue HKCU "${RUN_KEY}" "Poni"
   DeleteRegKey HKCU "${UNINST_KEY}"
   DeleteRegKey HKCU "Software\Poni"

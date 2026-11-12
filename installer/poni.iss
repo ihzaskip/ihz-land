@@ -19,7 +19,9 @@
 #define AppName "ihz.land"
 ; Folder, data and Run value names stay "Poni" (the app and 0.1.x installs use them).
 #define AppDir "Poni"
-#define AppPublisher "Jatevo Labs"
+#define AppPublisher "ihz.land"
+; LICENSE's copyright holder.
+#define AppCopyrightHolder "Jatevo Labs"
 #define AppExe "poni.exe"
 ; The island window's class (crates/poni/src/window.rs), used to ask a running copy to quit.
 #define IslandClass "Poni.Island"
@@ -31,7 +33,7 @@ AppName={#AppName}
 AppVersion={#AppVersion}
 AppVerName={#AppName} {#AppVersion}
 AppPublisher={#AppPublisher}
-AppCopyright=Copyright (C) 2026 {#AppPublisher}
+AppCopyright=Copyright (C) 2026 {#AppCopyrightHolder}
 VersionInfoVersion={#AppVersion}
 VersionInfoCompany={#AppPublisher}
 VersionInfoDescription={#AppName} Setup
@@ -50,7 +52,7 @@ SetupIconFile=..\crates\poni\res\poni.ico
 UninstallDisplayIcon={app}\{#AppExe}
 UninstallDisplayName={#AppName}
 WizardStyle=modern
-; Oyen hanging from the island on the finish page, Poni's logo in the header (both from tools/make_brand.py).
+; Pulo on its island on the finish page, its logo in the header (both from tools/make_brand.py).
 ; Setup picks the file closest to its image area: 100%, 150% and 200% scaling.
 WizardImageFile=art\wizard-202x386.png,art\wizard-336x643.png,art\wizard-430x824.png
 WizardSmallImageFile=art\wizard-small-58.png,art\wizard-small-77.png,art\wizard-small-97.png,art\wizard-small-116.png,art\wizard-small-124.png,art\wizard-small-143.png,art\wizard-small-159.png
@@ -71,8 +73,9 @@ Source: "{#ExeSource}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\THIRD-PARTY-NOTICES.txt"; DestDir: "{app}"; Flags: ignoreversion
 
 [InstallDelete]
-; The shortcut the 0.1.x versions from 0.1.2 on made, before the app was renamed Oyenza Studio.
+; The shortcuts the 0.1.x versions from 0.1.2 on made ("Oyen Poni") and the original project's 0.2.x ("Oyenza Studio").
 Type: files; Name: "{autoprograms}\Oyen Poni.lnk"
+Type: files; Name: "{autoprograms}\Oyenza Studio.lnk"
 
 [Icons]
 Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{#AppExe}"; Comment: "A living notch for Windows"

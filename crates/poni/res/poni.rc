@@ -1,3 +1,5 @@
+// Task Manager and Settings > Apps > Startup name the app by FileDescription and its publisher by CompanyName,
+// so both say ihz.land. LegalCopyright keeps the holder that LICENSE names.
 1 ICON "poni.ico"
 1 24 "poni.manifest"
 
@@ -11,13 +13,13 @@ BEGIN
   BEGIN
     BLOCK "040904B0"
     BEGIN
-      VALUE "CompanyName", "Jatevo Labs\0"
-      VALUE "FileDescription", "Oyenza Studio - a living notch for Windows\0"
+      VALUE "CompanyName", "ihz.land\0"
+      VALUE "FileDescription", "ihz.land\0"
       VALUE "FileVersion", "0.2.30\0"
       VALUE "InternalName", "poni\0"
       VALUE "LegalCopyright", "Copyright (C) 2026 Jatevo Labs\0"
       VALUE "OriginalFilename", "poni.exe\0"
-      VALUE "ProductName", "Oyenza Studio\0"
+      VALUE "ProductName", "ihz.land\0"
       VALUE "ProductVersion", "0.2.30\0"
     END
   END
