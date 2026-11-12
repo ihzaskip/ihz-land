@@ -5,10 +5,7 @@
 
 use crate::gfx::Image;
 use crate::state::{MediaSession, PowerState, SysStats};
-use poni_core::health::HealthSnapshot;
 use poni_core::lrc::Lyrics;
-use poni_core::agenda;
-use poni_core::oyenza::{Activity, Arrival, Bill, Saved};
 use poni_core::romanize::Ruby;
 use poni_core::timeline::Timeline;
 use std::sync::mpsc::Sender;
@@ -89,39 +86,14 @@ pub enum LyricsResult {
 pub enum OyenzaEvent {
     /// The sign-in saved on this PC was found at start (no notice).
     Restored { account: String },
-    /// A sign-in code to show, the oyenza.app address that takes it, and how long it lasts.
+    /// A sign-in code to show, the web address that takes it, and how long it lasts.
     Connecting { code: String, url: String, expires_in_s: u64 },
     Connected { account: String },
     /// Signing in stopped without a key: `expired`, `denied`, `offline` or `other`.
     ConnectFailed(String),
     ConnectCancelled,
-    /// Money that just arrived or went out by itself (oldest first).
-    Money { arrived: Vec<Arrival> },
-    /// The last 7 days of transactions, for the Oyenza page (while it's open).
-    Activity(Activity),
-    /// Asked again while the page is open: nothing changed.
-    ActivityChecked,
-    /// Bills due in the next 30 days, and the server's today (YYYY-MM-DD).
-    Bills { today: String, bills: Vec<Bill> },
-    /// The steps the phone sent, for the Health page; None: none to show (off in
-    /// Oyenza on the phone, or a server from before steps).
-    Health(Option<HealthSnapshot>),
-    /// The day for the Today page, from the apps switched on in oyenza.app (asked
-    /// while the page is on screen).
-    Day(agenda::Answer),
-    /// The server has no day for the Today page (a server from before it, or
-    /// switched off there): the page stays as it was before signing in mattered.
-    DayUnavailable,
-    /// Whether the account has Studio Pro (a server from before Pro: no).
-    Pro(bool),
-    /// The day couldn't be read just now (offline, a server error).
-    DayFailed,
-    NoteSaved(Vec<Saved>),
-    /// The note wasn't saved; the island puts `text` back and says why (`code`).
-    NoteFailed { text: String, code: String },
-    Undone,
-    UndoFailed(String),
-    /// Signed out: from the tray, or by the server (disconnected in oyenza.app).
+    /// Signed out: from the tray or Settings, or by the server (a service
+    /// refused the key: disconnected on the web).
     Disconnected { by_server: bool },
 }
 
@@ -176,8 +148,6 @@ pub enum AppEvent {
     Located(crate::services::location::Located),
     /// One of prayer times' online city files (`services::cities`).
     Cities { file: String, got: Result<poni_core::prayer::World, String> },
-    /// The Stocks page's prices, names and years (`services::stocks`).
-    Stocks(crate::services::stocks::StocksEvent),
     /// One of yt-dlp's lines for download `id` (`services::downloader`).
     Download { id: u64, line: poni_core::ytdlp::Line },
     /// yt-dlp for download `id` ended (`ok`: it exited with 0).
@@ -185,8 +155,8 @@ pub enum AppEvent {
     /// Notifications: what Windows allows, and new notifications
     /// (`services::notifications`).
     Notify(crate::services::notifications::NotifyEvent),
-    /// The AI tab's readings, typed keys, inference.oyenza.com's link and
-    /// heads-up notices (`services::usage`).
+    /// The AI tab's readings, typed keys and heads-up notices
+    /// (`services::usage`).
     Usage(crate::services::usage::UsageEvent),
     /// The adzan finished playing, or couldn't play on.
     AdzanEnded,
@@ -202,9 +172,4 @@ pub enum AppEvent {
     VoiceEnded,
     /// The microphone stopped mid-answer (`services::mic`): why, for the log.
     MicFailed(String),
-    /// The meeting being handed over, as it goes (`services::notes`).
-    Notes(Box<poni_core::notes::Reply>),
-    /// The meeting's recording stopped by itself: the longest meeting taken,
-    /// or the disk wouldn't take more (`services::notes`).
-    NotesStopped(poni_core::notes::CaptureIssue),
 }

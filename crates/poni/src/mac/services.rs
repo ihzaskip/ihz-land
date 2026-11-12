@@ -15,8 +15,6 @@ pub mod agy;
 #[path = "services/audio.rs"]
 pub mod audio;
 // Meeting notes' two sources (the microphone, and the Mac's own sound).
-#[path = "services/capture.rs"]
-pub mod capture;
 #[path = "services/cf.rs"]
 mod cf;
 #[path = "services/clipboard.rs"]
@@ -56,8 +54,6 @@ pub mod downloader;
 #[path = "../services/ielts.rs"]
 pub mod ielts;
 // And Meeting notes' recording and handing over (its sources: capture.rs).
-#[path = "../services/notes.rs"]
-pub mod notes;
 #[cfg(test)]
 #[path = "../services/downloader_live.rs"]
 mod downloader_live;
@@ -70,8 +66,6 @@ pub mod oyenza;
 #[path = "../services/update.rs"]
 pub mod update;
 // And the Stocks page's prices from oyenza.trade.
-#[path = "../services/stocks.rs"]
-pub mod stocks;
 // And the AI tab's worker (`studio_usage` does the reading).
 #[path = "../services/usage.rs"]
 pub mod usage;

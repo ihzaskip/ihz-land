@@ -8,7 +8,6 @@
 //! phone), so the tests can drive them over real sockets.
 
 pub mod addons;
-pub mod agenda;
 pub mod applemusic;
 pub mod caffeine;
 pub mod datetime;
@@ -18,14 +17,12 @@ pub mod frametime;
 pub mod geom;
 pub mod glass;
 pub mod hdr;
-pub mod health;
 pub mod hijri;
 pub mod ielts;
 pub mod look;
 pub mod lrc;
 pub mod lrclib;
 pub mod mediaremote;
-pub mod notes;
 pub mod notifications;
 pub mod nowplaying;
 pub mod oyen;
@@ -44,7 +41,6 @@ pub mod sha256;
 pub mod shelf;
 pub mod spot;
 pub mod spring;
-pub mod stocks;
 pub mod store;
 pub mod svgpath;
 pub mod sysmon;

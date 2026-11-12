@@ -85,7 +85,6 @@ pub enum MenuCmd {
     OyenzaCancel,
     OyenzaDisconnect,
     OyenzaOpen,
-    ToggleOyenzaAmounts,
     RecordScreen,
     /// "Update to Oyenza Studio 0.2.5…" (`crate::updates`).
     Update,
@@ -141,7 +140,7 @@ pub fn menu_items(s: &Settings, pinned: bool, oyenza: &OyenzaLink, recorder: boo
         item("Synced lyrics", MenuCmd::ToggleLyrics, s.lyrics),
         item("Lyrics pronunciation (romaji, pinyin, Korean)", MenuCmd::TogglePronunciation, s.lyrics_pronunciation),
         apple_music_menu(),
-        oyenza_menu(s, oyenza),
+        oyenza_menu(oyenza),
         item("Sounds", MenuCmd::ToggleSounds, s.sounds),
         MenuItem::Sub {
             label: "In full-screen apps".into(),
@@ -208,21 +207,20 @@ fn apple_music_menu() -> MenuItem {
     MenuItem::Sub { label: if on { "Apple Music lyrics: on".into() } else { "Apple Music lyrics".into() }, items }
 }
 
-/// Oyenza, optional: sign in with a code from oyenza.app, then what the
-/// island may show, and signing out.
-fn oyenza_menu(s: &Settings, link: &OyenzaLink) -> MenuItem {
+/// The account, optional: sign in with a code approved on the web, and
+/// signing out.
+fn oyenza_menu(link: &OyenzaLink) -> MenuItem {
     let items = match link {
-        OyenzaLink::Off => vec![item("Sign in to Oyenza…", MenuCmd::OyenzaSignIn, false)],
+        OyenzaLink::Off => vec![item(&format!("Sign in to {}…", poni_core::oyenza::NAME), MenuCmd::OyenzaSignIn, false)],
         OyenzaLink::Connecting { .. } => vec![item("Cancel sign-in", MenuCmd::OyenzaCancel, false)],
         OyenzaLink::Connected { account } => vec![
             MenuItem::Info { label: format!("Connected as {account}") },
-            item("Show amounts on the island", MenuCmd::ToggleOyenzaAmounts, s.oyenza_show_amounts),
-            item("Open oyenza.app", MenuCmd::OyenzaOpen, false),
+            item(&format!("Open {}", poni_core::oyenza::NAME), MenuCmd::OyenzaOpen, false),
             MenuItem::Separator,
             item("Disconnect", MenuCmd::OyenzaDisconnect, false),
         ],
     };
-    MenuItem::Sub { label: "Oyenza".into(), items }
+    MenuItem::Sub { label: poni_core::oyenza::NAME.into(), items }
 }
 
 fn build(menu: HMENU, items: &[MenuItem], cmds: &mut Vec<MenuCmd>) {

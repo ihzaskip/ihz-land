@@ -538,7 +538,7 @@ pub enum Problem {
     TooFast,
     /// 403 `level_locked`.
     LevelLocked,
-    /// 403 `pro_required`: the account no longer has Studio Pro (a session
+    /// 403 `pro_required`: the account isn't allowed to practise (a session
     /// already started is finished anyway).
     ProRequired,
     /// 404 `no_session`: it ended after 30 minutes without an answer.
@@ -597,7 +597,7 @@ impl Problem {
             Problem::DailyCap => "Jatah hari ini udah habis",
             Problem::TooFast => "Pelan-pelan dulu",
             Problem::LevelLocked => "Level ini masih kekunci",
-            Problem::ProRequired => "Latihan IELTS khusus Studio Pro",
+            Problem::ProRequired => "Latihan IELTS belum dibuka buat akun ini",
             Problem::NoSession => "Sesinya udah berhenti",
             Problem::TooBig => "Jawabannya kepanjangan",
             Problem::Busy(_) => "Pulo lagi rame",
@@ -621,7 +621,7 @@ impl Problem {
             Problem::DailyCap => "Sesi latihan hari ini udah kepakai semua. Lanjut besok ya.".into(),
             Problem::TooFast => "Kebanyakan permintaan dalam sejam ini. Tunggu sebentar, terus coba lagi.".into(),
             Problem::LevelLocked => "Capai target band di level sebelumnya dulu.".into(),
-            Problem::ProRequired => "Akun Oyenza-mu belum Studio Pro, jadi sesi baru belum bisa dimulai.".into(),
+            Problem::ProRequired => "Akunmu belum terdaftar buat latihan IELTS, jadi sesi baru belum bisa dimulai.".into(),
             Problem::NoSession => "Sesi berhenti kalau 30 menit nggak ada jawaban. Mulai lagi yuk.".into(),
             Problem::TooBig => "Rekaman maksimal sekitar 4 menit. Coba jawab lebih singkat.".into(),
             Problem::Busy(Some(s)) if s > 1 => format!("Lagi banyak yang latihan. Coba lagi {s} detik lagi."),

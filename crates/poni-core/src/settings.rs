@@ -28,8 +28,9 @@ pub enum Theme {
     /// The plain black island.
     #[default]
     Classic,
-    /// Oyen, the Oyenza cat, lives in the island: he peeks over its edge
-    /// while it rests, bobs to the music and takes Oyen's orange as accent.
+    /// Pulo, a small island hill with a sprout, lives in the island: it
+    /// peeks over its edge while it rests, bobs to the music and takes its
+    /// green as accent. (Named `Oyen` inside, as in the upstream project.)
     Oyen,
     /// Liquid glass: the island bends, frosts and tints what's under it.
     Glass,
@@ -99,7 +100,7 @@ pub struct Settings {
     pub hud_power: bool,
     pub hud_bluetooth: bool,
     pub sounds: bool,
-    /// Page shown first when expanding ("media", "today", "health", "shelf", "tasks", "focus", "ai", "oyenza").
+    /// Page shown first when expanding ("media", "today", "shelf", "tasks", "focus", "ai", …).
     pub start_page: String,
     /// Remember the last page instead of `start_page`.
     pub remember_page: bool,
@@ -109,9 +110,6 @@ pub struct Settings {
     /// newer Studio's choices survive a save.
     pub hidden_tabs: Vec<String>,
     pub pomodoro: PomodoroConfig,
-    /// Oyenza (once signed in): show sums and senders on the island straight
-    /// away. Off: they wait for a click on Show, so a shared screen shows none.
-    pub oyenza_show_amounts: bool,
     /// Keep the System page's charts going while it's closed (a light reading
     /// of the kernel counters once a second), so they're full when it opens.
     /// Only while the System add-on is on ([`Settings::system_history_on`]).
@@ -284,7 +282,6 @@ impl Default for Settings {
             remember_page: true,
             hidden_tabs: Vec::new(),
             pomodoro: PomodoroConfig::default(),
-            oyenza_show_amounts: false,
             system_history: true,
             addons: BTreeMap::new(),
             prayer: PrayerSettings::default(),
@@ -348,10 +345,10 @@ impl Settings {
         installed && self.addons.get(crate::addons::SCREEN_RECORDER.id).copied().unwrap_or(true)
     }
 
-    /// AI usage is on for an account with Studio Pro (`pro`): the AI tab shows
-    /// and its readers may run. It comes on with Pro, until switched off.
-    pub fn ai_usage_on(&self, pro: bool) -> bool {
-        pro && self.addons.get(crate::addons::AI_USAGE.id).copied().unwrap_or(true)
+    /// AI usage is on: the AI tab shows and its readers may run. It is on
+    /// until switched off.
+    pub fn ai_usage_on(&self) -> bool {
+        self.addons.get(crate::addons::AI_USAGE.id).copied().unwrap_or(true)
     }
 
     /// Clamp values a user may have hand-edited into nonsense.

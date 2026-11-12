@@ -305,52 +305,6 @@ pub fn peek(c: &mut Canvas, frame: &Frame, cx: f32, bar_y: f32, w: f32, top: f32
     c.unclip();
 }
 
-// ---------------------------------------------------------------- the Oyenza tab
-
-/// How long Oyen takes to rise into the Oyenza tab as the island opens.
-const TAB_RISE: f64 = 0.45;
-/// His arrival, rise and wave: the Hello mood's wave is over by 1.2 s (its
-/// last 0.4 s only hold still), so the frames stop there.
-const TAB_ARRIVE: f64 = 1.2;
-
-/// A move Oyen makes in the Oyenza tab, by himself, once.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum TabMove {
-    /// The island opened: he rises into his tab, waving (the Hello mood).
-    Arrive,
-    /// His tab was picked: a happy hop.
-    Picked,
-}
-
-/// Oyen as the Oyenza tab's icon: the Oyenza mark, his whole head `w` DIPs
-/// wide, centred on `center` and kept inside `clip` (the tab). `moved`: his
-/// last move of his own and when it started; after it he rests (a blink, an
-/// ear flick now and then) and, with the pointer over the tab row, watches it
-/// (`look`, -1 left .. 1 right of him). At night he sleeps. Returns whether he
-/// is moving by himself (the caller keeps frames coming until he stops).
-#[allow(clippy::too_many_arguments)]
-pub fn tab(c: &mut Canvas, center: Point, w: f32, clip: Rect, now: f64, moved: Option<(TabMove, f64)>, night: bool, look: Option<f32>) -> bool {
-    // At night he rises asleep, without the wave.
-    let arrive = if night { TAB_RISE } else { TAB_ARRIVE };
-    let (frame, rise, moving) = match moved.map(|(m, at)| (m, now - at)) {
-        Some((TabMove::Arrive, s)) if s < arrive => {
-            let rise = 1.0 - back_out((s / TAB_RISE) as f32);
-            let frame = if night { oyen::frame(Mood::Sleep, 0.6, Input::default(), SMALL_EYES) } else { oyen::frame(Mood::Hello, s, Input::default(), SMALL_EYES) };
-            (frame, rise, true)
-        }
-        Some((TabMove::Picked, s)) if s < Mood::Happy.loop_secs() && !night => (oyen::frame(Mood::Happy, s, Input::default(), SMALL_EYES), 0.0, true),
-        _ => {
-            let (frame, moving) = rest(now, night, look);
-            (frame, 0.0, moving)
-        }
-    };
-    let k = w / MARK_W;
-    c.clip(clip);
-    draw(c, &frame, Point::new(center.x, center.y + 12.0 * k + rise * clip.h), k);
-    c.unclip();
-    moving
-}
-
 // ---------------------------------------------------------------- the IELTS page
 
 /// What Oyen does on the IELTS page, as the examiner.
@@ -370,12 +324,6 @@ pub enum Coach {
     Proud { since: f64 },
     /// Something went wrong: he droops from `since`, and stays down.
     Sorry { since: f64 },
-    /// Writing (the Notes page, while a meeting's notes are made): eyes down,
-    /// following a pencil along the line, line after line.
-    Write,
-    /// The notes are saved: the ear flips up like a page corner and a tick
-    /// draws itself from `since`, then rest.
-    Logged { since: f64 },
 }
 
 /// Syllables a second while Oyen talks, a phrase's length, and how much of
@@ -387,8 +335,6 @@ const PHRASE_ON: f64 = 0.8;
 const LISTEN_LIFT: f64 = 3.0;
 /// How long he's happy about a good band.
 const PROUD_S: f64 = 2.4;
-/// One line of writing, while a meeting's notes are made.
-const WRITE_LINE_S: f64 = 1.6;
 
 /// Oyen on the IELTS page: his whole head `w` DIPs wide, head and ears
 /// centred on `center`. Returns whether he moves by himself (the page keeps
@@ -410,14 +356,6 @@ pub fn coach(c: &mut Canvas, center: Point, w: f32, now: f64, what: Coach) -> bo
             let t = (now - since).max(0.0);
             (oyen::frame(Mood::Sad, t, Input::default(), eyes), t < Mood::Sad.loop_secs())
         }
-        Coach::Write => {
-            // Across the line in 1.6 s, then back to the next one.
-            let line = (now / WRITE_LINE_S).fract();
-            let pencil = Input { pencil: 2.0 * line - 1.0, ..Input::default() };
-            (oyen::frame(Mood::Nulis, now.rem_euclid(Mood::Nulis.loop_secs()), pencil, eyes), true)
-        }
-        Coach::Logged { since } if now - since < Mood::Tercatat.loop_secs() => (oyen::frame(Mood::Tercatat, (now - since).max(0.0), Input::default(), eyes), true),
-        Coach::Logged { .. } => rest_eyes(now, false, None, eyes),
     };
     let k = w / MARK_W;
     draw(c, &frame, Point::new(center.x, center.y + 12.0 * k), k);

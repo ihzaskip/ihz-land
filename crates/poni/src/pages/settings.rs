@@ -22,7 +22,6 @@ use crate::activities::{text_with_dim, text_with_dim_width};
 use crate::commands::{Command, OyenzaCmd};
 use crate::gfx::{TextStyle, Weight};
 use crate::icons::Icon;
-use crate::pages::PageKind;
 use crate::pill::status;
 use crate::state::{AppState, OyenzaLink, Said};
 use crate::ui::{wid, wid_n, PillStyle, Ui, PILL_GAP, PILL_REGULAR, PILL_SMALL};
@@ -76,8 +75,6 @@ const CHECK_H: f32 = 22.0;
 const ADVANCED_ICON: f32 = 15.0;
 const SWITCH_H: f32 = 18.0;
 const KNOB_INSET: f32 = 2.0;
-/// Oyenza's colour, as on the Oyenza page.
-const OYENZA: Color = palette::ORANGE;
 /// The tabs row's chips, like the Record page's inputs.
 const CHIP_H: f32 = 24.0;
 const CHIP_PAD: f32 = 8.0;
@@ -571,27 +568,27 @@ pub(crate) fn draw_account(ui: &mut Ui, st: &mut AppState, r: Rect) {
     crate::oyen::app_icon(ui.c, Point::new(r.x + ICON / 2.0, cy), ICON);
     match st.oyenza.link.clone() {
         OyenzaLink::Off => {
-            let label = "Sign in with Oyenza";
-            let w = ui.pill_width(label, false, false);
+            let label = format!("Sign in to {}", oyenza::NAME);
+            let w = ui.pill_width(&label, false, false);
             let b = Rect::new(r.right() - w, cy - PILL_REGULAR / 2.0, w, PILL_REGULAR);
-            if ui.pill(wid("settings.sign-in"), b, label, None, PillStyle::Primary(OYENZA)).clicked {
+            if ui.pill(wid("settings.sign-in"), b, &label, None, PillStyle::Primary(st.accent)).clicked {
                 st.cmd(Command::Oyenza(OyenzaCmd::SignIn));
             }
-            account_text(ui, r, b.x, "Oyenza", "Sign in to see money in and bills due here.");
+            account_text(ui, r, b.x, oyenza::NAME, "Sign in for the IELTS coach.");
         }
-        OyenzaLink::Connecting { code, until, .. } => {
+        OyenzaLink::Connecting { code, url, until } => {
             let cancel_w = ui.pill_width("Cancel", false, true);
             let cancel = Rect::new(r.right() - cancel_w, cy - PILL_SMALL / 2.0, cancel_w, PILL_SMALL);
             if ui.pill(wid("settings.cancel"), cancel, "Cancel", None, PillStyle::Utility).clicked {
                 st.cmd(Command::Oyenza(OyenzaCmd::Cancel));
             }
-            let show_w = ui.pill_width("Show code", false, true);
-            let show = Rect::new(cancel.x - PILL_GAP - show_w, cancel.y, show_w, PILL_SMALL);
-            if ui.pill(wid("settings.show-code"), show, "Show code", None, PillStyle::Primary(OYENZA)).clicked {
-                st.cmd(Command::SetPage(PageKind::Oyenza));
+            let open_w = ui.pill_width("Open", true, true);
+            let open = Rect::new(cancel.x - PILL_GAP - open_w, cancel.y, open_w, PILL_SMALL);
+            if ui.pill(wid("settings.open-code"), open, "Open", Some(Icon::Open), PillStyle::Primary(st.accent)).clicked {
+                st.cmd(Command::OpenUrl(url));
             }
             let line = format!("Code {code} · works for {}", oyenza::code_time_left(until - st.now));
-            account_text(ui, r, show.x, "Signing in to Oyenza", &line);
+            account_text(ui, r, open.x, &format!("Signing in to {}", oyenza::NAME), &line);
         }
         OyenzaLink::Connected { account } => {
             let dis_w = ui.pill_width("Disconnect", false, true);
@@ -599,21 +596,12 @@ pub(crate) fn draw_account(ui: &mut Ui, st: &mut AppState, r: Rect) {
             if ui.pill(wid("settings.disconnect"), dis, "Disconnect", None, PillStyle::Utility).clicked {
                 st.cmd(Command::Oyenza(OyenzaCmd::Disconnect));
             }
-            // Sums and senders straight away on the island (off: they wait for Show).
-            let label = "Show amounts";
-            let lw = ui.c.measure(label, &TextStyle::body(), 300.0).0.ceil();
-            let row = Rect::new(dis.x - 2.0 * ROW_BLEED - lw - 10.0 - SWITCH_W, cy - ROW_H / 2.0, lw + 10.0 + SWITCH_W, ROW_H);
-            let on = st.settings.oyenza_show_amounts;
-            if switch_row(ui, wid("settings.amounts"), row, label, Some(on), st.accent) {
-                st.settings.oyenza_show_amounts = !on;
-                st.cmd(Command::SaveSettings);
-            }
-            account_text(ui, r, row.x - ROW_BLEED, "Oyenza", &format!("Signed in as {account}"));
+            account_text(ui, r, dis.x, oyenza::NAME, &format!("Signed in as {account}"));
         }
     }
 }
 
-/// The account's name over one dim line, between Oyen and `right` (where
+/// The account's name over one dim line, between the icon and `right` (where
 /// the row's buttons start).
 fn account_text(ui: &mut Ui, r: Rect, right: f32, title: &str, line: &str) {
     let x = r.x + TEXT_X;

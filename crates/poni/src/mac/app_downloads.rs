@@ -106,7 +106,7 @@ impl App {
         self.start_ready();
     }
 
-    /// The Downloader switched off, or Studio Pro went: its downloads stop
+    /// The Downloader switched off: its downloads stop
     /// before its tools are deleted, and the list goes with the tab.
     pub(super) fn downloads_off(&mut self) {
         let live: Vec<u64> = self.st.downloads.list.iter().filter(|j| j.state.live()).map(|j| j.id).collect();

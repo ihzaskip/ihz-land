@@ -10,9 +10,7 @@ use crate::pages::PageKind;
 use poni_core::addons::Status as AddonStatus;
 use poni_core::datetime::LocalDateTime;
 use poni_core::geom::{palette, Color};
-use poni_core::health::HealthSnapshot;
 use poni_core::lrc::Lyrics;
-use poni_core::oyenza::{Activity, Bill, DayPick, Saved, Seen};
 use poni_core::phonedrop::QrMatrix;
 use poni_core::pomodoro::Pomodoro;
 use poni_core::recorder::Phase as RecPhase;
@@ -151,8 +149,8 @@ pub enum NoticeAction {
 pub enum InlineAction {
     /// Start the idle Pomodoro phase.
     StartFocus,
-    /// Put the notice's hidden words in place: an Oyenza sum (and sender),
-    /// or a message and who it's from (Notifications).
+    /// Put the notice's hidden words in place: a message and who it's from
+    /// (Notifications).
     ShowAmount,
     /// Stop the adzan (Prayer times).
     StopAdzan,
@@ -327,14 +325,6 @@ pub struct PageUiState {
     pub task_input: String,
     pub task_scroll: f32,
     pub shelf_scroll: f32,
-    /// The Today page's list: how far it's scrolled (DIPs), the date clicked
-    /// in its grid (days since 1970-01-01), and when it was last drawn (mono
-    /// time; a page drawn again after a while starts at today).
-    pub today_scroll: f32,
-    pub today_pick: Option<i64>,
-    /// The next draw scrolls the list to `today_pick` (or back to today).
-    pub today_jump: bool,
-    pub today_drawn: f64,
     /// Smoothly animated lyric scroll position (line index as float).
     pub lyric_pos: f32,
     pub lyric_track: String,
@@ -344,10 +334,6 @@ pub struct PageUiState {
     pub peek_until: f64,
     /// Header tab under the pointer and since when (for hover labels).
     pub tab_hover: Option<(usize, f64)>,
-    /// Oyen in the Oyenza tab: his last move of his own and when it started
-    /// (`oyen::tab`). None while the island is closed: the next opening is
-    /// his arrival.
-    pub oyen_tab: Option<(crate::oyen::TabMove, f64)>,
     /// The module the System page shows under its strip.
     pub system_module: poni_core::sysmon::Module,
     /// The last System reading had a GPU (keeps its chip while the next one is on its way).
@@ -365,8 +351,6 @@ pub struct PageUiState {
     /// the side of the camera they peek out from (`mac/notch.rs`).
     #[cfg(target_os = "macos")]
     pub peek: poni_core::peek::Peek,
-    /// The Stocks page: its scroll, search, edit mode and chart animation.
-    pub stocks: crate::pages::stocks::StocksUi,
     /// The Caffeine page: the drink picked, a drag, the list's scroll, Add
     /// a drink while it's open, and the chart kept with its painted dots.
     pub caffeine: crate::pages::caffeine::CaffeineUi,
@@ -374,14 +358,6 @@ pub struct PageUiState {
     pub downloads: crate::pages::downloads::DownloadsUi,
     /// The AI tab's own state while it shows (`pages::usage`).
     pub usage: crate::pages::usage::UsageUi,
-    /// The Notes page: when the last notes were saved (Oyen's tick), a short
-    /// line beside them until a time ("Copied"), and whether a recording is
-    /// kept on this PC for Try again.
-    pub notes_saved_at: f64,
-    pub notes_note: Option<(String, f64)>,
-    pub notes_kept: bool,
-    /// The Pro add-on whose "what it does" page shows on the Add-ons page.
-    pub addon_about: Option<&'static str>,
 }
 
 /// Whether Windows lets Oyenza Studio read a game's frames. Its event tracing
@@ -422,79 +398,33 @@ pub struct GameState {
     pub access: FpsAccess,
 }
 
-/// Oyenza sign-in, as the island sees it.
+/// The account sign-in (ihz.app), as the island sees it.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub enum OyenzaLink {
     #[default]
     Off,
-    /// A code on screen, waiting for approval in oyenza.app, until mono time `until`.
+    /// A code on screen, waiting for approval on the web, until mono time `until`.
     Connecting { code: String, url: String, until: f64 },
     Connected { account: String },
 }
 
-/// Where the Today page's day stands (`OyenzaState::agenda`).
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum AgendaState {
-    /// Not asked yet since signing in or opening.
-    #[default]
-    Waiting,
-    /// `agenda` holds the latest answer.
-    Ready,
-    /// The last ask failed; `agenda` may still hold an older answer.
-    Failed,
-    /// The server has no day for Today (from before it, or switched off there).
-    Unavailable,
-}
+/// How long a notice stays (seconds), and how much longer once its hidden
+/// words are shown.
+pub const NOTICE_S: f64 = 8.0;
+pub const SHOWN_S: f64 = 6.0;
+/// A notice held back by a full-screen app still shows within this time.
+pub const HELD_MAX_S: f64 = 30.0 * 60.0;
 
-/// What the Oyenza tab and its notices show (`pages::oyenza`), and the Today
-/// page's day (`pages::today`). Oyen's moods never read any of it: money
-/// never makes him happier or a bill sadder.
+/// The sign-in, and a notice held back while a full-screen app hid the
+/// island (the module keeps the upstream project's name).
 #[derive(Clone, Debug, Default)]
 pub struct OyenzaState {
     pub link: OyenzaLink,
-    /// The last 7 days of transactions (asked while the page is open).
-    pub activity: Option<Activity>,
-    /// When each row was first seen, so what lands while you look glows.
-    pub seen: Seen,
-    /// The day the page shows (Today when it opens).
-    pub day: DayPick,
-    /// How far that day's list is scrolled (DIPs).
-    pub scroll: f32,
-    pub bills: Vec<Bill>,
-    /// The server's today for `bills` (YYYY-MM-DD).
-    pub bills_today: String,
-    /// Unix time of Oyenza's last answer ("Updated 13:49").
-    pub updated_unix: Option<i64>,
-    /// The spend being typed.
-    pub input: String,
-    /// A note is on its way to the server.
-    pub saving: bool,
-    /// What was just saved, with Undo until mono time `.1`.
-    pub saved: Option<(Vec<Saved>, f64)>,
-    /// Why the last note wasn't saved (until the text changes).
-    pub error: Option<String>,
-    /// A short line ("Taken back") until mono time `.1`.
-    pub flash: Option<(String, f64)>,
-    /// "Show amounts" in the tab, until the island closes.
-    pub reveal: bool,
     /// A notice that came while a full-screen app hid the island, and when.
     pub held: Option<(Notice, f64)>,
-    /// Arrivals already shown as a notice (`oyenza::unseen`), so none repeats.
-    pub shown: Vec<String>,
     /// Pinned before a sign-in code pinned the island open.
     pub pinned_before: Option<bool>,
-    /// The Today page's day (`poni_core::agenda`), kept in memory only, and
-    /// the unix time it came.
-    pub agenda: Option<poni_core::agenda::Answer>,
-    pub agenda_unix: Option<i64>,
-    pub agenda_state: AgendaState,
-    /// Signing in started from the Today page: back to it once connected.
-    pub from_today: bool,
-    /// Whether the account has Studio Pro, as the server last said (None:
-    /// not asked yet). Signing out forgets it with the rest.
-    pub pro: Option<bool>,
 }
-
 
 /// Where finding the PC's place stands.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -523,56 +453,6 @@ pub enum CityFile {
     Here(std::sync::Arc<World>),
     /// Offline, or the website didn't answer.
     Failed,
-}
-
-/// The Stocks add-on's prices, kept in memory only (the list itself is
-/// `store.stocks`). Filled by `services::stocks` while the page is open.
-#[derive(Clone, Debug, Default)]
-pub struct StocksState {
-    /// The last answer, and the Unix time it came or was last confirmed unchanged.
-    pub board: Option<poni_core::stocks::Board>,
-    pub checked: Option<i64>,
-    /// Why the last ask failed, until one goes through.
-    pub trouble: Option<crate::services::stocks::Trouble>,
-    /// Every listed stock's name, once the search has asked for them.
-    pub names: Option<std::sync::Arc<poni_core::stocks::Names>>,
-    pub names_failed: bool,
-    /// Years of daily closes read this run, by code (the IHSG's too).
-    pub years: HashMap<String, poni_core::stocks::History>,
-    /// Codes whose year couldn't be read.
-    pub no_year: Vec<String>,
-}
-
-impl StocksState {
-    pub fn apply(&mut self, ev: crate::services::stocks::StocksEvent, unix: i64) {
-        use crate::services::stocks::StocksEvent;
-        match ev {
-            StocksEvent::Board(b) => {
-                self.board = Some(b);
-                self.checked = Some(unix);
-                self.trouble = None;
-            }
-            StocksEvent::Same => {
-                self.checked = Some(unix);
-                self.trouble = None;
-            }
-            StocksEvent::Failed(why) => self.trouble = Some(why),
-            StocksEvent::Names(n) => {
-                self.names = Some(n);
-                self.names_failed = false;
-            }
-            StocksEvent::NoNames => self.names_failed = true,
-            StocksEvent::History(h) => {
-                self.no_year.retain(|c| *c != h.code);
-                self.years.insert(h.code.clone(), h);
-            }
-            StocksEvent::NoHistory(code) => {
-                if !self.no_year.contains(&code) {
-                    self.no_year.push(code);
-                }
-            }
-        }
-    }
 }
 
 /// The Prayer times add-on's live state.
@@ -642,8 +522,6 @@ pub struct RecView {
 pub struct UsageState {
     /// Each service's last reading.
     pub readings: BTreeMap<ProviderId, Reading>,
-    /// inference.oyenza.com's balance and spend, once connected.
-    pub inference: InferenceLink,
     /// The secret names (`usage::KeyAsk::secret`) that hold a typed key.
     pub keys: BTreeSet<&'static str>,
     /// A refresh is under way.
@@ -663,23 +541,6 @@ pub struct Reading {
     pub trouble: Option<Trouble>,
     /// When the latest refresh ended, unix seconds.
     pub checked_at: i64,
-}
-
-/// inference.oyenza.com on the AI tab: connected by a code the person
-/// approves in its dashboard, after which Studio holds a read-only key.
-#[derive(Clone, Debug, Default, PartialEq)]
-pub enum InferenceLink {
-    #[default]
-    Off,
-    /// Asking for a code.
-    Starting,
-    /// A code on screen, waiting for approval at `url`, until unix `expires_at`.
-    Code { code: String, url: String, expires_at: i64 },
-    /// Connected: its balance and spend are read.
-    On { account: String },
-    /// Connecting didn't work (why, in a few words).
-    #[allow(dead_code)] // until the AI tab's worker lands: it says why connecting stopped
-    Failed(String),
 }
 
 impl UsageState {
@@ -707,7 +568,6 @@ impl UsageState {
                 r.checked_at = at;
             }
             UsageEvent::Keys(keys) => self.keys = keys,
-            UsageEvent::Link(link) => self.inference = link,
             UsageEvent::Refreshing(on) => self.refreshing = on,
             UsageEvent::Alerts(_) => {}
         }
@@ -729,35 +589,11 @@ pub fn usage_notice(a: &Alert, accent: Color, until: f64) -> Notice {
         color,
         title: a.title.clone(),
         title_dim: String::new(),
-        subtitle: usage_line(&a.subtitle, a.nudge.as_deref()),
+        subtitle: a.subtitle.clone(),
         until,
         action: Some(NoticeAction::OpenPage(PageKind::Ai)),
         inline: None,
         reveal: None,
-    }
-}
-
-/// How wide a notice's second line may be, by the Pill's guess: Classic's
-/// room for its words (372 - 58 - 22 = 292 DIP; Pill's is wider) less a
-/// little for system fonts wider than the guess.
-const NOTICE_LINE_W: f32 = 280.0;
-
-/// A notice has two lines, so a plan that ran out while Oyenza Inference is
-/// connected puts the nudge after the reset time ("Resets 14:20 · Keep going
-/// on Oyenza Inference") while both fit, else the nudge alone: the AI tab,
-/// a click away, has the reset time.
-fn usage_line(subtitle: &str, nudge: Option<&str>) -> String {
-    match nudge.map(str::trim).filter(|n| !n.is_empty()) {
-        None => subtitle.to_string(),
-        Some(n) if subtitle.trim().is_empty() => n.to_string(),
-        Some(n) => {
-            let both = format!("{} \u{b7} {n}", subtitle.trim());
-            if crate::pill::notice::guess(&both, crate::gfx::ts::FOOTNOTE) <= NOTICE_LINE_W {
-                both
-            } else {
-                n.to_string()
-            }
-        }
     }
 }
 
@@ -786,8 +622,6 @@ pub struct AppState {
     pub ui: PageUiState,
     /// System accent colour (falls back to blue).
     pub accent: Color,
-    /// Steps from the person's phone, sent by Oyenza (None until connected).
-    pub health: Option<HealthSnapshot>,
     /// The page currently shown when expanded.
     pub page: PageKind,
     /// When playback went from playing to paused (the pill lingers 30 s).
@@ -825,8 +659,6 @@ pub struct AppState {
     /// the Record tab can show (`record_on`). Asked at start, as the island
     /// opens and when the recorder writes, never at rest.
     pub recorder: bool,
-    /// The Stocks add-on's prices (its list: `store.stocks`).
-    pub stocks: StocksState,
     /// The Downloads page's jobs (`poni_core::downloads`), in memory only.
     pub downloads: poni_core::downloads::Jobs,
     /// This app offers the Downloader: Windows outside the Microsoft Store
@@ -845,8 +677,6 @@ pub struct AppState {
     pub usage: UsageState,
     /// The IELTS page's session with Oyen (the IELTS add-on).
     pub ielts: poni_core::ielts::Coach,
-    /// The Notes page's meeting (the Meeting notes add-on).
-    pub notes: poni_core::notes::Taker,
     /// Side effects requested during the frame.
     pub cmds: Vec<Command>,
 }
@@ -903,7 +733,6 @@ impl AppState {
             app_icons: HashMap::new(),
             ui: PageUiState::default(),
             accent: palette::BLUE,
-            health: None,
             page,
             media_paused_at: None,
             pinned: false,
@@ -920,7 +749,6 @@ impl AppState {
             script_note: None,
             script_hidden: None,
             recorder: false,
-            stocks: StocksState::default(),
             downloads: poni_core::downloads::Jobs::default(),
             downloader_offered: false,
             rec: RecView::default(),
@@ -928,11 +756,9 @@ impl AppState {
             notify_can: false,
             usage: UsageState::default(),
             ielts: Default::default(),
-            notes: Default::default(),
             cmds: Vec::new(),
         };
         // A list from a hand-edited file keeps to codes, each once, ten at most.
-        st.store.stocks.tidy();
         // Drinks in time order, each with its own id (old ones go when one is
         // added, with the real time).
         st.store.caffeine.mend();
@@ -942,20 +768,17 @@ impl AppState {
             let on = st.settings.addon_on(a.id);
             st.addons.insert(a.id, if !on { AddonStatus::Off } else if a.downloads() { AddonStatus::Checking } else { AddonStatus::Ready });
         }
-        // Last open on the Script, System, Health, Stocks, IELTS or Notes
+        // Last open on the Script, System, Caffeine, IELTS or AI
         // page, since switched off, or on a tab since hidden: open on the
         // first tab.
         let off = match st.page {
             PageKind::Script => !st.script_on(),
             PageKind::System => !st.system_on(),
-            PageKind::Health => !st.health_on(),
-            PageKind::Stocks => !st.stocks_on(),
             PageKind::Caffeine => !st.caffeine_on(),
             PageKind::Downloads => !st.downloader_on(),
             PageKind::Record => !st.record_on(),
             PageKind::Notifications => !st.notifications_on(),
             PageKind::Ielts => !st.ielts_on(),
-            PageKind::Notes => !st.notes_on(),
             PageKind::Ai => !st.ai_usage_on(),
             p => st.tab_hidden(p),
         };
@@ -1013,27 +836,16 @@ impl AppState {
         self.addon(poni_core::addons::SYSTEM.id) == AddonStatus::Ready
     }
 
-    /// The Health add-on is on: the Health tab shows and the steps are asked for.
-    pub fn health_on(&self) -> bool {
-        self.addon(poni_core::addons::HEALTH.id) == AddonStatus::Ready
-    }
-
-    /// The Stocks add-on is on: the Stocks tab shows (its prices are asked
-    /// for only while the page is on screen).
-    pub fn stocks_on(&self) -> bool {
-        self.addon(poni_core::addons::STOCKS.id) == AddonStatus::Ready
-    }
-
     /// The Caffeine add-on is on: the Caffeine tab shows, and the island
     /// reminds of the day's last call.
     pub fn caffeine_on(&self) -> bool {
         self.addon(poni_core::addons::CAFFEINE.id) == AddonStatus::Ready
     }
 
-    /// The Downloader add-on is on, with its tools in place, for an account
-    /// with Studio Pro: the Downloads tab shows.
+    /// The Downloader add-on is on, with its tools in place: the Downloads
+    /// tab shows.
     pub fn downloader_on(&self) -> bool {
-        self.downloader_offered && self.studio_pro() == Some(true) && self.addon(poni_core::addons::DOWNLOADER.id) == AddonStatus::Ready
+        self.downloader_offered && self.addon(poni_core::addons::DOWNLOADER.id) == AddonStatus::Ready
     }
 
     /// Notifications is on: its tab shows, and new notifications from the
@@ -1050,29 +862,15 @@ impl AppState {
         p.hideable() && self.settings.hidden_tabs.iter().any(|k| k == p.key())
     }
 
-    /// The IELTS add-on is on, and the server hasn't said the account is
-    /// without Studio Pro: the IELTS tab shows (signed out, its sign-in card).
+    /// The IELTS add-on is on: the IELTS tab shows (signed out, its sign-in
+    /// card).
     pub fn ielts_on(&self) -> bool {
-        self.addon(poni_core::addons::IELTS.id) == AddonStatus::Ready && self.oyenza.pro != Some(false)
+        self.addon(poni_core::addons::IELTS.id) == AddonStatus::Ready
     }
 
-    /// AI usage is on: the AI tab shows and its readers may run. It takes an
-    /// account the server says has Studio Pro.
+    /// AI usage is on: the AI tab shows and its readers may run.
     pub fn ai_usage_on(&self) -> bool {
-        self.settings.ai_usage_on(self.studio_pro() == Some(true))
-    }
-
-    /// The signed-in account has Studio Pro, as the server last said.
-    pub fn studio_pro(&self) -> Option<bool> {
-        match self.oyenza.link {
-            OyenzaLink::Connected { .. } => self.oyenza.pro,
-            _ => Some(false),
-        }
-    }
-
-    /// The Meeting notes add-on is on: the Notes tab shows.
-    pub fn notes_on(&self) -> bool {
-        self.addon(poni_core::addons::MEETING_NOTES.id) == AddonStatus::Ready
+        self.settings.ai_usage_on()
     }
 
     /// Prayer times is on and its places are read: the tab and reminders run.
@@ -1102,25 +900,13 @@ impl AppState {
         Some(m)
     }
 
-    /// New steps from the phone (`None`: none to show), kept in memory only,
-    /// never in data.json. Returns today's steps when they just passed the
-    /// goal; the first numbers after start or sign-in only set the baseline
-    /// (`poni_core::health::goal_notice`).
-    pub fn take_health(&mut self, next: Option<HealthSnapshot>) -> Option<u32> {
-        let today = self.local.day_key();
-        let reached = next.as_ref().filter(|n| poni_core::health::goal_notice(self.health.as_ref(), n, &today)).map(|n| n.steps_on(&today));
-        self.health = next;
-        reached
-    }
-
     /// Show `n` now or, while a full-screen app hides the island (`hidden`), keep
-    /// it for when the island is back, the way money notices wait
-    /// (`OyenzaState::held`, shown then if no older than `HELD_MAX_S`). One
-    /// notice waits at a time, and a money or bill notice already waiting stays.
+    /// it for when the island is back (`OyenzaState::held`, shown then if no
+    /// older than `HELD_MAX_S`). One notice waits at a time.
     pub fn show_or_hold(&mut self, n: Notice, hidden: bool) {
         if !hidden {
             self.notice = Some(n);
-        } else if self.oyenza.held.as_ref().is_none_or(|(_, at)| self.now - at > poni_core::oyenza::HELD_MAX_S) {
+        } else if self.oyenza.held.as_ref().is_none_or(|(_, at)| self.now - at > HELD_MAX_S) {
             self.oyenza.held = Some((n, self.now));
         }
     }
@@ -1158,12 +944,12 @@ impl AppState {
             self.usage.waiting.clear();
             return false;
         }
-        self.usage.waiting.retain(|(a, at)| now - at <= poni_core::oyenza::HELD_MAX_S && !u.hidden.iter().any(|k| k == a.provider.key()));
+        self.usage.waiting.retain(|(a, at)| now - at <= HELD_MAX_S && !u.hidden.iter().any(|k| k == a.provider.key()));
         if !free || self.notice.is_some() || self.usage.waiting.is_empty() {
             return false;
         }
         let (a, _) = self.usage.waiting.remove(0);
-        self.notice = Some(usage_notice(&a, self.accent, now + poni_core::oyenza::NOTICE_S));
+        self.notice = Some(usage_notice(&a, self.accent, now + NOTICE_S));
         true
     }
 
@@ -1176,15 +962,12 @@ impl AppState {
 
     /// What the AI tab's notices go by, for its worker (`alerts::changes`):
     /// that line, and the app's clock for the reset times ("Resets 14:20" or
-    /// "2:20 PM", local). A plan that runs out mentions Oyenza Inference only
-    /// while it is connected and its key works.
+    /// "2:20 PM", local).
     pub fn usage_alert_cfg(&self) -> AlertCfg {
-        let refused = self.usage.readings.get(&ProviderId::Oyenza).is_some_and(|r| matches!(r.trouble, Some(Trouble::Refused | Trouble::Disabled)));
         AlertCfg {
             near: f32::from(self.usage_near_pct()) / 100.0,
             offset_min: poni_core::oyenza::offset_minutes(&self.local, self.unix),
             use_24h: self.settings.use_24h,
-            inference: matches!(self.usage.inference, InferenceLink::On { .. }) && !refused,
             ..AlertCfg::default()
         }
     }
@@ -1282,33 +1065,11 @@ mod tests {
     }
 
     #[test]
-    fn the_goal_notice_is_only_for_steps_seen_passing_it() {
-        use poni_core::health::{HealthDay, HealthSource};
-        let mut st = AppState::new(Settings::default(), Store::default());
-        st.local = LocalDateTime { year: 2026, month: 10, day: 24, hour: 15, minute: 20, second: 0 };
-        let snap = |steps: u32| HealthSnapshot {
-            goal: 8000,
-            source: HealthSource::AppleHealth,
-            updated_at: 0,
-            days: vec![HealthDay { date: "2026-10-24".into(), steps, distance_m: None, active_kcal: None }],
-        };
-        // Over the goal in the first numbers after start: a baseline, no notice (a restart never repeats it).
-        assert_eq!(st.take_health(Some(snap(9000))), None);
-        assert_eq!(st.health.as_ref().map(|h| h.steps_on("2026-10-24")), Some(9000));
-        // Off in Oyenza: nothing kept; the numbers after it are a baseline again.
-        assert_eq!(st.take_health(None), None);
-        assert!(st.health.is_none());
-        assert_eq!(st.take_health(Some(snap(7900))), None);
-        assert_eq!(st.take_health(Some(snap(8010))), Some(8010));
-        assert_eq!(st.take_health(Some(snap(8500))), None);
-    }
-
-    #[test]
-    fn the_goal_notice_waits_while_a_full_screen_app_hides_the_island() {
+    fn a_notice_waits_while_a_full_screen_app_hides_the_island() {
         let mut st = AppState::new(Settings::default(), Store::default());
         st.now = 100.0;
         let notice = |title: &str| Notice {
-            icon: Icon::Steps,
+            icon: Icon::Bell,
             color: palette::GREEN,
             title: title.into(),
             title_dim: String::new(),
@@ -1323,12 +1084,12 @@ mod tests {
         st.show_or_hold(notice("goal"), true);
         assert!(st.notice.is_none());
         assert_eq!(held(&st), Some(("goal".into(), 100.0)));
-        // A money notice already waiting stays...
-        st.oyenza.held = Some((notice("money"), 100.0));
+        // One already waiting stays...
+        st.oyenza.held = Some((notice("adzan"), 100.0));
         st.show_or_hold(notice("goal"), true);
-        assert_eq!(held(&st), Some(("money".into(), 100.0)));
+        assert_eq!(held(&st), Some(("adzan".into(), 100.0)));
         // ...unless it's too old to show any more.
-        st.now = 100.0 + poni_core::oyenza::HELD_MAX_S + 1.0;
+        st.now = 100.0 + HELD_MAX_S + 1.0;
         st.show_or_hold(notice("goal"), true);
         assert_eq!(held(&st).map(|h| h.0), Some("goal".into()));
         // The island on screen: it shows at once.
@@ -1349,8 +1110,6 @@ mod tests {
         // The next good one clears the trouble.
         u.apply(UsageEvent::Reading { id: ProviderId::Codex, outcome: Ok(snap.clone()), at: 340 });
         assert_eq!(u.readings[&ProviderId::Codex].trouble, None);
-        u.apply(UsageEvent::Link(InferenceLink::On { account: "a•••@example.com".into() }));
-        assert_eq!(u.inference, InferenceLink::On { account: "a•••@example.com".into() });
         // Troubles that pass keep the numbers; the way in taken away drops them.
         let keeps = [
             Trouble::Offline,
@@ -1376,7 +1135,7 @@ mod tests {
     }
 
     fn alert(provider: ProviderId, kind: AlertKind, title: &str) -> Alert {
-        Alert { provider, kind, title: title.into(), subtitle: "Resets 14:20".into(), nudge: None }
+        Alert { provider, kind, title: title.into(), subtitle: "Resets 14:20".into() }
     }
 
     /// The titles of the AI notices as they go up, the island free throughout.
@@ -1417,18 +1176,18 @@ mod tests {
         assert!(!st.show_usage_notice(false, false));
         assert!(st.notice.is_none());
         // ...and for another notice to leave.
-        st.notify(Icon::Check, palette::GREEN, "Connected to Oyenza", "as a•••@example.com", 6.0, None);
+        st.notify(Icon::Check, palette::GREEN, "Connected to ihz.app", "as a•••@example.com", 6.0, None);
         assert!(!st.show_usage_notice(true, false));
-        assert_eq!(st.notice.as_ref().map(|n| n.title.as_str()), Some("Connected to Oyenza"));
+        assert_eq!(st.notice.as_ref().map(|n| n.title.as_str()), Some("Connected to ihz.app"));
         st.notice = None;
         st.now = 130.0;
         assert!(st.show_usage_notice(true, false));
         let n = st.notice.take().unwrap();
-        assert_eq!((n.title.as_str(), n.subtitle.as_str(), n.until), ("Codex: 80% of 5-hour", "Resets 14:20", 130.0 + poni_core::oyenza::NOTICE_S));
+        assert_eq!((n.title.as_str(), n.subtitle.as_str(), n.until), ("Codex: 80% of 5-hour", "Resets 14:20", 130.0 + NOTICE_S));
         assert_eq!((n.action, n.inline), (Some(NoticeAction::OpenPage(PageKind::Ai)), None));
         // Too old once the island is free: dropped.
         st.hold_usage_alerts(vec![codex()]);
-        st.now += poni_core::oyenza::HELD_MAX_S + 1.0;
+        st.now += HELD_MAX_S + 1.0;
         assert!(shown(&mut st).is_empty());
         assert!(st.usage.waiting.is_empty());
         // A service hidden since: dropped.
@@ -1447,7 +1206,7 @@ mod tests {
     }
 
     #[test]
-    fn an_ai_notice_says_what_ran_out_and_where_to_keep_going() {
+    fn an_ai_notice_says_what_ran_out() {
         let accent = palette::PURPLE;
         // The service's own mark.
         assert_eq!(usage_notice(&alert(ProviderId::Claude, AlertKind::Out, "t"), accent, 0.0).icon, Icon::Claude);
@@ -1456,20 +1215,9 @@ mod tests {
             [color(AlertKind::Near(90)), color(AlertKind::Out), color(AlertKind::Low), color(AlertKind::Back)],
             [accent, palette::ORANGE, palette::ORANGE, palette::GREEN]
         );
-        // Out with Oyenza Inference connected: the nudge follows the reset time while both fit...
-        let mut a = alert(ProviderId::Claude, AlertKind::Out, "Claude Code: 5-hour used up");
-        a.nudge = Some("Keep going on Oyenza Inference".into());
-        assert_eq!(usage_notice(&a, accent, 0.0).subtitle, "Resets 14:20 \u{b7} Keep going on Oyenza Inference");
-        a.subtitle = "Resets 2:20 PM".into();
-        assert_eq!(usage_notice(&a, accent, 0.0).subtitle, "Resets 2:20 PM \u{b7} Keep going on Oyenza Inference");
-        // ...else it stands alone (the AI tab has the reset time).
-        for long in ["Resets 10:20 AM", "Resets Thu 09:00", "Resets Tue 3 Nov", "None left for now", "Premium requests \u{b7} resets Tue 1 Dec"] {
-            a.subtitle = long.into();
-            assert_eq!(usage_notice(&a, accent, 0.0).subtitle, "Keep going on Oyenza Inference", "{long}");
-        }
-        // Without a nudge the alert's own line stays as it is.
-        a.nudge = None;
-        assert_eq!(usage_notice(&a, accent, 0.0).subtitle, "Premium requests \u{b7} resets Tue 1 Dec");
+        // The alert's own line, as it is.
+        let a = alert(ProviderId::Claude, AlertKind::Out, "Claude Code: 5-hour used up");
+        assert_eq!(usage_notice(&a, accent, 0.0).subtitle, "Resets 14:20");
     }
 
     #[test]
@@ -1486,24 +1234,17 @@ mod tests {
         st.settings.use_24h = false;
         st.settings.usage.near_pct = 80;
         let cfg = st.usage_alert_cfg();
-        assert_eq!((cfg.offset_min, cfg.use_24h, cfg.inference, cfg.floor_usd), (420, false, false, alerts::AlertCfg::default().floor_usd));
-        st.usage.inference = InferenceLink::On { account: "a•••@example.com".into() };
-        assert!(st.usage_alert_cfg().inference);
+        assert_eq!((cfg.offset_min, cfg.use_24h, cfg.floor_usd), (420, false, alerts::AlertCfg::default().floor_usd));
         // What the worker's alerts then say, as the island shows it.
         let five = |used| Window::new(WindowKind::Session, "5-hour", used).resets(Some(st.unix + 2 * 3600 + 20 * 60)).length(Some(18_000));
         let read = |used| Snapshot { windows: vec![five(used)], ..Snapshot::new(ProviderId::Claude, st.unix, Source::Online) };
         let said = alerts::changes(Some(&read(0.7)), &read(1.0), st.unix, &st.usage_alert_cfg());
         let n = usage_notice(&said[0], st.accent, 0.0);
         assert_eq!((n.title.as_str(), n.color), ("Claude Code: 5-hour used up", palette::ORANGE));
-        assert!(n.subtitle.starts_with("Resets 2:20 PM \u{b7} "), "{}", n.subtitle);
+        assert_eq!(n.subtitle, "Resets 2:20 PM");
         // ...and one getting close (the self-test's `ai-notice` reads the same way).
         let said = alerts::changes(Some(&read(0.7)), &read(0.9), st.unix, &st.usage_alert_cfg());
         let n = usage_notice(&said[0], st.accent, 0.0);
         assert_eq!((n.title.as_str(), n.subtitle.as_str(), n.color), ("Claude Code: 90% of 5-hour", "Resets 2:20 PM", st.accent));
-        // A refused or switched-off inference key: no nudge to a dead end.
-        for t in [Trouble::Refused, Trouble::Disabled] {
-            st.usage.readings.insert(ProviderId::Oyenza, Reading { snapshot: None, trouble: Some(t), checked_at: st.unix });
-            assert!(!st.usage_alert_cfg().inference);
-        }
     }
 }

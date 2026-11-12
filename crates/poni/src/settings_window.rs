@@ -191,7 +191,7 @@ impl Section {
             Section::Prayer => "Prayer times",
             Section::Caffeine => "Caffeine",
             Section::Ai => "AI usage",
-            Section::Oyenza => "Oyenza account",
+            Section::Oyenza => "Account",
             Section::About => "About",
         }
     }
@@ -228,7 +228,7 @@ impl Section {
             Section::Prayer => Icon::Moon,
             Section::Caffeine => Icon::Coffee,
             Section::Ai => Icon::Ai,
-            Section::Oyenza => Icon::Oyenza,
+            Section::Oyenza => Icon::App,
             Section::About => Icon::Gear,
         }
     }
@@ -247,13 +247,13 @@ impl Section {
             Section::Prayer => Color::hex(0x30B0A0),
             Section::Caffeine => Color::hex(0xA2845E),
             Section::Ai => palette::PURPLE,
-            Section::Oyenza => palette::ORANGE,
+            Section::Oyenza => palette::GREEN,
             Section::About => Color::hex(0x8E8E93),
         }
     }
 
     /// Prayer times and Caffeine have a section only while their add-ons are
-    /// on, AI usage only with Studio Pro.
+    /// on, AI usage while it is on.
     pub fn shown(self, st: &AppState) -> bool {
         match self {
             Section::Prayer => st.prayer_on(),
@@ -358,7 +358,7 @@ pub enum Block {
     Version,
     /// The themes as cards with a small picture of each.
     Themes,
-    /// The Oyenza account row (the island's Settings page has the same).
+    /// The account row (the island's Settings page has the same).
     Account,
     /// The Add-ons page itself.
     Addons,
@@ -541,7 +541,7 @@ pub fn blocks(section: Section, st: &AppState) -> Vec<Block> {
                     item(Key::Tab(p), p.title(), sub, Ctl::Switch(Some(!st.tab_hidden(p))))
                 })
                 .collect();
-            vec![Block::Group(Some("When the island opens"), open), Block::Group(Some("Tabs in the island"), tabs), Block::Note("Oyenza and the add-ons' pages always have a tab.")]
+            vec![Block::Group(Some("When the island opens"), open), Block::Group(Some("Tabs in the island"), tabs), Block::Note("The add-ons' pages have a tab while they are on.")]
         }
         Section::Addons => vec![Block::Addons],
         Section::Focus => {
@@ -600,7 +600,7 @@ pub fn blocks(section: Section, st: &AppState) -> Vec<Block> {
             if u.notices {
                 rows.push(item(Key::AiNear, "Close to the limit at", None, Ctl::Stepper(format!("{} %", st.usage_near_pct()))));
             }
-            vec![Block::Group(None, rows), Block::Note("Services, keys and the Oyenza Inference connect are on the AI tab.")]
+            vec![Block::Group(None, rows), Block::Note("Services and keys are on the AI tab.")]
         }
         Section::Caffeine => {
             let c = s.caffeine.sane();

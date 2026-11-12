@@ -111,23 +111,6 @@ pub fn ielts_dir() -> PathBuf {
     cache_dir().join("ielts")
 }
 
-/// A meeting being recorded or handed over for notes: its audio parts, one
-/// folder a meeting (local, never roaming). A folder goes once its notes are
-/// saved or the recording is thrown away.
-pub fn notes_audio_dir() -> PathBuf {
-    cache_dir().join("notes")
-}
-
-/// Where meeting notes are saved, as Markdown: `Documents\Oyenza Studio\Notes`
-/// (wherever the user moved Documents to). Under `PONI_HOME` for the self-test.
-pub fn notes_dir() -> PathBuf {
-    if let Some(h) = home_override() {
-        return h.join("notes-saved");
-    }
-    let docs = known_folder(&windows::Win32::UI::Shell::FOLDERID_Documents).unwrap_or_else(|| env_dir("USERPROFILE").join("Documents"));
-    docs.join("ihz.land").join("Notes")
-}
-
 /// Paired phones (their pairing secrets and names), sealed with DPAPI.
 /// Removing every phone deletes the file.
 pub fn paired_phones_path() -> PathBuf {

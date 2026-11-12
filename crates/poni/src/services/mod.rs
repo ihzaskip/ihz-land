@@ -22,7 +22,6 @@ pub mod location;
 pub mod lyrics;
 pub mod media;
 pub mod mic;
-pub mod notes;
 pub mod oyenza;
 pub mod pairdrop;
 pub mod phonedrop;
@@ -35,7 +34,6 @@ mod romanize_compare;
 pub mod secret;
 pub mod sound;
 pub mod notifications;
-pub mod stocks;
 pub mod sysmon;
 pub mod sysstats;
 pub mod update;
@@ -58,8 +56,6 @@ pub struct Services {
     oyenza: Option<oyenza::OyenzaService>,
     pairdrop: Option<pairdrop::PairDropService>,
     addons: Option<addons::AddonService>,
-    /// Started the first time the Stocks page opens ([`Services::stocks_watch`]).
-    stocks: std::cell::OnceCell<Option<stocks::StocksService>>,
     /// Started at the first download ([`Services::download`]).
     downloader: std::cell::OnceCell<Option<downloader::DownloaderService>>,
     /// Started the first time the AI tab opens or its notices are on
@@ -88,15 +84,12 @@ impl Services {
         let audio = started("audio", audio::AudioService::start(sink.clone()));
         let bluetooth = started("bluetooth", bluetooth::BluetoothService::start(sink.clone()));
         let fullscreen = started("fullscreen", fullscreen::FullscreenWatcher::start(helper, sink.clone()));
-        // Idle (no calls) until the person signs in to Oyenza from the tray.
+        // Idle (no calls) unless a sign-in code is on screen.
         let oyenza = started("oyenza", oyenza::OyenzaService::start(sink.clone(), activity));
         // Asks nothing until a phone is paired.
         let pairdrop = started("pair drop", pairdrop::PairDropService::start(sink.clone()));
         // Asleep unless an add-on is on; then it only checks the files it has.
         // The Microsoft Store build has no Downloader, whatever settings.json says.
-        // A Studio Pro add-on's files wait for Pro (`set_pro`): a filter here
-        // would delete the Downloader's tools at every start, before the
-        // server's answer, and fetch them again after it.
         let store = crate::autostart::packaged();
         let on = poni_core::addons::ALL
             .iter()
@@ -104,7 +97,7 @@ impl Services {
             .map(|a| a.id)
             .collect();
         let addons = started("add-ons", addons::AddonService::start(sink.clone(), on));
-        Self { media, lyrics, _audio: audio, _bluetooth: bluetooth, fullscreen, oyenza, pairdrop, addons, stocks: std::cell::OnceCell::new(), usage: std::cell::OnceCell::new(), downloader: std::cell::OnceCell::new(), sink: sink.clone() }
+        Self { media, lyrics, _audio: audio, _bluetooth: bluetooth, fullscreen, oyenza, pairdrop, addons, usage: std::cell::OnceCell::new(), downloader: std::cell::OnceCell::new(), sink: sink.clone() }
     }
 
     pub fn stop(self, _helper: HWND) {
@@ -117,17 +110,6 @@ impl Services {
     /// False when that thread couldn't start.
     pub fn run_job(&self, job: addons::Job) -> bool {
         self.addons.as_ref().map(|a| a.run(job)).is_some()
-    }
-
-    /// What the Stocks page wants (`pages::stocks::watch`). Its thread starts
-    /// the first time the page opens and sleeps whenever it is closed.
-    pub fn stocks_watch(&self, w: stocks::Watch) {
-        if !w.open && self.stocks.get().is_none() {
-            return;
-        }
-        if let Some(s) = self.stocks.get_or_init(|| started("stocks", stocks::StocksService::start(self.sink.clone()))) {
-            s.set_watch(w);
-        }
     }
 
     /// Run yt-dlp for `req` (the Downloader add-on's tools are in place).
@@ -145,18 +127,9 @@ impl Services {
     }
 
     /// An add-on was switched on (download its files) or off (delete them).
-    /// A Studio Pro add-on's files come only with Pro (`set_pro`).
     pub fn set_addon(&self, id: &'static str, on: bool) {
         if let Some(a) = &self.addons {
             a.set(id, on);
-        }
-    }
-
-    /// Whether the account has Studio Pro: the Pro add-ons' files come with
-    /// it, and stay as they are without it.
-    pub fn set_pro(&self, pro: bool) {
-        if let Some(a) = &self.addons {
-            a.set_pro(pro);
         }
     }
 
@@ -193,7 +166,7 @@ impl Services {
         }
     }
 
-    /// The PC's use or power changed (the Oyenza worker paces itself by it).
+    /// The PC's use changed (the sign-in worker paces itself by it).
     pub fn oyenza_activity(&self, a: oyenza::Activity) {
         if let Some(o) = &self.oyenza {
             o.set_activity(a);
@@ -212,8 +185,8 @@ impl Services {
         }
     }
 
-    /// Something the AI tab asked its worker for (a key, a refresh, the
-    /// inference.oyenza.com link): it starts the thread if need be.
+    /// Something the AI tab asked its worker for (a key, a refresh): it
+    /// starts the thread if need be.
     pub fn usage_cmd(&self, c: UsageCmd) {
         if let Some(s) = self.usage.get_or_init(|| started("usage", usage::UsageService::start(self.sink.clone()))) {
             s.command(c);

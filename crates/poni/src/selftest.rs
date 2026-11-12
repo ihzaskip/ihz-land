@@ -59,17 +59,15 @@ use crate::pages::{self, PageKind};
 use crate::paths;
 use crate::png;
 use crate::state::{
-    AgendaState, AppState, CityFile, FpsAccess, GameState, Hud, HudKind, InlineAction, Locate, LyricsState, LyricsStatus, MediaSession, Notice, NoticeAction, OyenzaLink,
+    AppState, CityFile, FpsAccess, GameState, Hud, HudKind, InlineAction, Locate, LyricsState, LyricsStatus, MediaSession, Notice, NoticeAction, OyenzaLink,
     OyenzaState, PhoneAsk, PairedPhone, PhoneDrop, PhoneTransfer, PhoneView, PowerState, PrayerState, SysStats, VolumeState,
 };
 use crate::ui::wid;
-use poni_core::addons::{Status as AddonStatus, CAFFEINE, DOWNLOADER, HEALTH, IELTS, JAPANESE_READINGS, MEETING_NOTES, PRAYER_TIMES, SCRIPT_READER, STOCKS, SYSTEM};
+use poni_core::addons::{Status as AddonStatus, CAFFEINE, DOWNLOADER, IELTS, JAPANESE_READINGS, PRAYER_TIMES, SCRIPT_READER, SYSTEM};
 use poni_core::notifications::NotificationSettings;
 use poni_core::datetime::{days_from_civil, LocalDateTime};
 use poni_core::geom::{palette, Color, Point, Rect};
-use poni_core::health::{HealthDay, HealthSnapshot, HealthSource};
 use poni_core::lrc::{parse_lrc, Lyrics};
-use poni_core::oyenza::{Activity, Bill, Day, DayPick, Saved, Seen, Txn, WalletRef};
 use poni_core::phonedrop::QrMatrix;
 use poni_core::prayer::{PlaceList, World};
 use poni_core::pomodoro::{Phase as PomoPhase, RunState};
@@ -599,145 +597,19 @@ fn fake_stats() -> SysStats {
     }
 }
 
-/// Oyenza, signed in as an example account (all made up): a week of
-/// transactions with today's newest just landed (it glows), and bills due
-/// tomorrow and later.
-fn fake_oyenza(st: &AppState, scene: Scene, now: f64) -> OyenzaState {
-    let iso = |t: i64| {
-        let (y, m, d) = poni_core::datetime::civil_from_days(t.div_euclid(86_400));
-        let s = t.rem_euclid(86_400);
-        format!("{y:04}-{m:02}-{d:02}T{:02}:{:02}:{:02}Z", s / 3600, s % 3600 / 60, s % 60)
-    };
-    // Today's rows a few minutes to hours ago, or, early in the day, spread over the time since midnight
-    // (`share` of it), so their times stay apart and in order; earlier days at set times.
-    let since_midnight = st.local.hour as i64 * 3600 + st.local.minute as i64 * 60 + st.local.second as i64;
-    let midnight = st.unix - since_midnight;
-    let ago = |minutes: i64, share: f64| iso(st.unix - (minutes * 60).min((since_midnight as f64 * share) as i64));
-    let on = |days_ago: i64, h: i64, m: i64| iso(midnight - days_ago * 86_400 + h * 3600 + m * 60);
-    let txn = |id: &str, kind: &str, title: &str, text: &str, wallet: (&str, &str), at: String, auto: bool| Txn {
-        id: id.into(),
-        kind: kind.into(),
-        title: title.into(),
-        amount: 1.0,
-        text: text.into(),
-        category: None,
-        wallet: Some(WalletRef { name: wallet.0.into(), color: wallet.1.into() }),
-        to_wallet: None,
-        at,
-        auto,
-    };
-    let (bca, gopay, ovo, cash) = (("BCA", "#0060AF"), ("GoPay", "#00AED6"), ("OVO", "#4C3494"), ("Cash", "#8E8E93"));
-    let day = |n: i64| st.local.add_days(n).day_key();
-    let mut transfer = txn("t1", "transfer", "", "Rp 500.000", bca, ago(545, 0.9), false);
-    transfer.to_wallet = Some(WalletRef { name: gopay.0.into(), color: gopay.1.into() });
-    let today = Day {
-        date: day(0),
-        count: 5,
-        in_sum: 1_250_000.0,
-        out: 152_000.0,
-        in_text: "Rp 1.250.000".into(),
-        out_text: "Rp 152.000".into(),
-        rows: vec![
-            txn("t5", "income", "Gaji Oktober", "Rp 1.250.000", bca, ago(2, 0.04), true),
-            txn("t4", "expense", "Kopi susu", "Rp 25.000", gopay, ago(33, 0.25), false),
-            txn("t3", "expense", "Grab ke rumah", "Rp 38.000", ovo, ago(128, 0.5), false),
-            txn("t2", "expense", "Tokopedia · Kabel USB-C", "Rp 89.000", bca, ago(427, 0.75), true),
-            transfer,
-        ],
-    };
-    let yesterday = Day {
-        date: day(-1),
-        count: 4,
-        in_sum: 200_000.0,
-        out: 395_000.0,
-        in_text: "Rp 200.000".into(),
-        out_text: "Rp 395.000".into(),
-        rows: vec![
-            txn("y4", "expense", "Makan siang", "Rp 40.000", gopay, on(1, 12, 40), false),
-            txn("y3", "expense", "Listrik PLN", "Rp 350.000", bca, on(1, 10, 2), true),
-            txn("y2", "income", "Uang masuk", "Rp 200.000", gopay, on(1, 9, 15), true),
-            txn("y1", "expense", "Parkir", "Rp 5.000", cash, on(1, 8, 10), false),
-        ],
-    };
-    let thursday = Day {
-        date: day(-2),
-        count: 2,
-        in_sum: 0.0,
-        out: 172_000.0,
-        in_text: "Rp 0".into(),
-        out_text: "Rp 172.000".into(),
-        rows: vec![txn("w2", "expense", "Bensin", "Rp 150.000", bca, on(2, 18, 20), false), txn("w1", "expense", "Kopi", "Rp 22.000", gopay, on(2, 8, 45), false)],
-    };
-    let empty = |n: i64| Day { date: day(-n), count: 0, in_sum: 0.0, out: 0.0, in_text: "Rp 0".into(), out_text: "Rp 0".into(), rows: Vec::new() };
-    let days = vec![today.clone(), yesterday, thursday, empty(3), empty(4), empty(5), empty(6)];
-    // Everything was on the page a while ago except today's newest, which just landed.
-    let mut seen = Seen::default();
-    let mut before = days.clone();
-    before[0].rows.remove(0);
-    seen.note(&before, now - 120.0);
-    seen.note(&days, now - 12.0);
+/// The account in the scenes that show it (all made up): a code waiting in
+/// Settings, else signed in.
+fn fake_oyenza(scene: Scene, now: f64) -> OyenzaState {
     let link = match scene {
-        Scene::OyenzaSignIn | Scene::SettingsSigningIn => OyenzaLink::Connecting {
+        Scene::SettingsSigningIn => OyenzaLink::Connecting {
             code: "KPJX-TMNQ".into(),
-            url: "https://oyenza.app/connect?code=KPJX-TMNQ".into(),
+            url: format!("https://{}?code=KPJX-TMNQ", poni_core::oyenza::APPROVE_PAGE),
             // Pinned on every step, so the countdown reads 9:41 in the screenshot.
             until: now + 581.0,
         },
         _ => OyenzaLink::Connected { account: "a•••@example.com".into() },
     };
-    let bill = |kind: &str, name: &str, due: String, text: Option<&str>| Bill { kind: kind.into(), name: name.into(), due, amount: text.map(|_| 1.0), text: text.map(Into::into) };
-    OyenzaState {
-        link,
-        activity: Some(Activity { cursor: "42".into(), today: day(0), days }),
-        seen,
-        day: match scene {
-            Scene::OyenzaYesterday => DayPick::Past(1),
-            Scene::OyenzaTomorrow => DayPick::Tomorrow,
-            _ => DayPick::Today,
-        },
-        bills: vec![
-            // Today's page lists a bill due today; the Oyenza tab's scenes keep it tomorrow.
-            bill("subscription", "Spotify", day(if scene == Scene::TodayDay { 0 } else { 1 }), Some("Rp 54.990")),
-            bill("card", "Kartu Kredit BCA", day(1), None),
-            bill("subscription", "Netflix", day(5), Some("Rp 54.000")),
-            bill("subscription", "Google One", day(8), Some("Rp 26.900")),
-            bill("card", "Kartu Kredit Mandiri", day(17), None),
-        ],
-        bills_today: st.day_key(),
-        updated_unix: Some(st.unix - 8),
-        saved: (scene == Scene::OyenzaSaved).then(|| {
-            let kopi = Saved { id: "s1".into(), title: "Kopi".into(), amount: 25_000.0, text: "Rp 25.000".into(), category: Some("Makan & Minum".into()), wallet: "GoPay".into() };
-            (vec![kopi], now + 9.5)
-        }),
-        agenda: fake_agenda(st, scene),
-        agenda_unix: Some(st.unix - 120),
-        agenda_state: match scene {
-            Scene::TodayTiles => AgendaState::Unavailable,
-            Scene::TodayDay | Scene::TodayNoApps | Scene::TodayOff | Scene::TodayPicked => AgendaState::Ready,
-            _ => AgendaState::Waiting,
-        },
-        ..OyenzaState::default()
-    }
-}
-
-/// The Today page's days for its scenes, around the clock it runs at
-/// (`agenda::sample`); none switched on for `TodayNoApps`, Google Calendar
-/// off (so no events came) for `TodayOff`.
-fn fake_agenda(st: &AppState, scene: Scene) -> Option<poni_core::agenda::Answer> {
-    use poni_core::agenda::{sample, Answer, Source};
-    let today = st.day_key();
-    let now_min = st.local.hour as i32 * 60 + st.local.minute as i32;
-    match scene {
-        Scene::TodayDay | Scene::TodayPicked => Some(sample(&today, now_min)),
-        Scene::TodayOff => {
-            let mut a = sample(&today, now_min);
-            a.apps.googlecalendar = Source::Off;
-            a.events.clear();
-            Some(a)
-        }
-        Scene::TodayNoApps => Some(Answer::none(&today)),
-        _ => None,
-    }
+    OyenzaState { link, ..OyenzaState::default() }
 }
 
 /// The WhatsApp message in the Notifications scenes (made up: the self-test
@@ -775,25 +647,6 @@ fn seed_notifications(st: &mut AppState, scene: Scene) {
         }
         n.set("Microsoft.YourPhone_8wekyb3d8bbwe!App", false);
     }
-}
-
-/// The Stocks page's scenes on a made-up market (`pages::stocks::picture`);
-/// every other scene: the list as it starts, nothing loaded.
-fn seed_stocks(st: &mut AppState, scene: Scene, now: f64) {
-    use crate::pages::stocks::{picture, Picture};
-    let shows = match scene {
-        Scene::Page(PageKind::Stocks) => Picture::Day,
-        Scene::StocksPicked => Picture::Year,
-        Scene::StocksSearch => Picture::Search,
-        Scene::StocksEdit => Picture::Edit,
-        _ => {
-            st.store.stocks = poni_core::stocks::Watchlist::default();
-            st.stocks = crate::state::StocksState::default();
-            st.ui.stocks = crate::pages::stocks::StocksUi::default();
-            return;
-        }
-    };
-    picture(st, shows, now);
 }
 
 /// The Caffeine page's scenes on made-up days (`pages::caffeine::picture`),
@@ -888,64 +741,6 @@ fn seed_ielts(st: &mut AppState, scene: Scene, now: f64) {
         }
     };
     st.ielts = Coach::sample(shows, now);
-}
-
-/// The Notes page's scenes in made-up states (nothing records: the levels
-/// hold still, and the time sits half a second into its second so the
-/// picture doesn't catch it turning); every other scene: no meeting.
-fn seed_notes(st: &mut AppState, scene: Scene, now: f64) {
-    use poni_core::notes::{Phase, Reply, Taker};
-    st.notes = Taker::default();
-    st.ui.notes_kept = false;
-    st.ui.notes_note = None;
-    // Studio Pro, as the server would say: on for the notes' and IELTS' own scenes.
-    if st.oyenza.link != crate::state::OyenzaLink::Off {
-        st.oyenza.pro = Some(matches!(scene.page(), Some(PageKind::Notes | PageKind::Ielts)) && scene != Scene::NotesPro);
-    }
-    match scene {
-        Scene::Page(PageKind::Notes) => st.notes.last = Some(sample_notes()),
-        Scene::NotesListening | Scene::NotesActivity => {
-            let secs = if scene == Scene::NotesListening { 42.5 } else { 754.5 };
-            st.notes.started(now - secs, true, true);
-            (st.notes.mic, st.notes.pc) = (0.32, 0.55);
-        }
-        Scene::NotesWriting => {
-            st.notes.stopped(4, 1834.0);
-            st.notes.phase = Phase::Writing { since: now - 38.5 };
-        }
-        Scene::NotesReady => {
-            st.notes.reply(Reply::Saved(Box::new(sample_notes())), now);
-            // Oyen's tick long since drawn: at rest in the picture.
-            st.ui.notes_saved_at = f64::NEG_INFINITY;
-        }
-        _ => {}
-    }
-}
-
-/// A made-up meeting's notes (no real names).
-fn sample_notes() -> poni_core::notes::Saved {
-    use poni_core::notes::{Action, Line, Notes, Saved, Topic};
-    let s = |v: &[&str]| v.iter().map(|x| x.to_string()).collect::<Vec<_>>();
-    let notes = Notes {
-        title: "Studio launch plan".into(),
-        lang: "en".into(),
-        summary: s(&[
-            "The launch moves to 14 Nov so the Windows build is signed first.",
-            "Pro stays at Rp49rb a month; the student price waits for December.",
-            "Dimas takes the store listing, Rina the landing page and the video.",
-        ]),
-        decisions: s(&["Launch on 14 Nov", "No student price at launch"]),
-        actions: vec![
-            Action { who: "Dimas".into(), what: "Send the store listing for review".into(), when: "Friday".into() },
-            Action { who: "Rina".into(), what: "Cut the 30 s launch video".into(), when: "next Tuesday".into() },
-            Action { who: "".into(), what: "Ask two campuses about the student price".into(), when: "".into() },
-        ],
-        topics: vec![Topic { title: "Timing".into(), points: s(&["Signing takes a week", "14 Nov is a Friday"]) }],
-        transcript: vec![Line { t: 3.0, who: "Rina".into(), text: "Okay, let's start with the date.".into() }],
-        secs: 1834,
-    };
-    let started = poni_core::datetime::LocalDateTime { year: 2026, month: 10, day: 29, hour: 14, minute: 5, second: 0 };
-    Saved { notes, file: "2026-10-29 14.05 Studio launch plan.md".into(), started }
 }
 
 /// Prayer times for its scenes: on, in Kota Jakarta (Edinburgh, picked by
@@ -1049,7 +844,6 @@ enum Scene {
     VolumeHud,
     ChargingHud,
     BluetoothHud,
-    HealthNotice,
     Page(PageKind),
     /// The shelf while files are dragged over the island.
     ShelfDrop,
@@ -1063,22 +857,6 @@ enum Scene {
     ShelfPhoneReceive,
     /// Click the first header tab on the Today page; expect the Music page.
     TabClick,
-    /// The Health page before the person signs in with Oyenza: no numbers yet.
-    HealthSignedOut,
-    /// Oyenza: money arrived, its sum hidden behind Show.
-    OyenzaMoney,
-    /// ...and after Show.
-    OyenzaMoneyShown,
-    /// Oyenza: the day before a subscription renews.
-    OyenzaBill,
-    /// The Oyenza tab signed out: what signing in brings, and Sign in.
-    OyenzaSignedOut,
-    /// The Oyenza tab while a sign-in code waits for approval.
-    OyenzaSignIn,
-    /// The Oyenza tab right after a spend was saved (Undo showing).
-    OyenzaSaved,
-    /// The Health page signed in to Oyenza, no steps from the phone (its switch is off).
-    HealthSignedIn,
     /// Click the gear in the header on the Health page; expect Settings.
     GearClick,
     /// Settings while a sign-in code waits for approval.
@@ -1125,12 +903,6 @@ enum Scene {
     PrayerPickerWorld,
     /// Prayer times in Edinburgh, picked by hand (a city abroad, its method beside its name).
     PrayerWorld,
-    /// The Oyenza page on yesterday (a dot on Today: something new there).
-    OyenzaYesterday,
-    /// The Oyenza page on tomorrow's bills.
-    OyenzaTomorrow,
-    /// Oyenza: a card charge read from the bank's email, its sum hidden.
-    OyenzaMoneyOut,
     /// Show over games: the readout over a game.
     GameStats,
     /// ...before the one-time OK: the frame rate waits, the rest shows.
@@ -1153,8 +925,6 @@ enum Scene {
     LowBatteryHud,
     /// The Script page partway through a reading (paused, so the shot holds still).
     ScriptReading,
-    /// The Health page with steps the phone last sent three days ago.
-    HealthStale,
     /// The same reading with Oyenza Studio Recorder installed: Record shows.
     ScriptRecorder,
     /// System page on a desktop, Power: its power supply reports over USB.
@@ -1182,24 +952,6 @@ enum Scene {
     UpdateSheet,
     /// The Update sheet once Windows has the Setup: Install now, or on next start.
     UpdateReady,
-    /// Today signed in, Google Calendar and Gmail switched on: the meeting on
-    /// now with Join, then the rest of the day (an event, a flight, bills due).
-    TodayDay,
-    /// Today signed in with no app switched on for it in oyenza.app.
-    TodayNoApps,
-    /// Today signed in to a server without the day: the stat tiles, as before.
-    TodayTiles,
-    /// Today with Google Calendar switched off for Studio (Gmail on): its
-    /// logo dimmed, Turn on, and Gmail's flights and the bills.
-    TodayOff,
-    /// Today with a date ten days on clicked in the grid: the list starts there.
-    TodayPicked,
-    /// Stocks with Bank BCA picked, over a year.
-    StocksPicked,
-    /// Stocks: "Add a stock" open, "bank" typed.
-    StocksSearch,
-    /// Stocks in edit mode: remove buttons and handles.
-    StocksEdit,
     /// A recording with Oyenza Studio Recorder: the Record page while it
     /// records (`Page(Record)` shows its choices), then the closed island's
     /// recording pill, recording and paused.
@@ -1254,22 +1006,6 @@ enum Scene {
     /// Settings in the Store copy: Notifications' chip beside the island's
     /// own pages, on as everyone's starts, and its bell in the header's row.
     SettingsTabsStore,
-    /// Meeting notes: Oyen listening, 0:42 in, both bars moving.
-    NotesListening,
-    /// Meeting notes: the meeting handed over, Oyen writing.
-    NotesWriting,
-    /// Meeting notes: the notes saved, with Open, Copy, the folder and Done.
-    NotesReady,
-    /// Meeting notes on the closed island: Oyen listening, 12:34 in.
-    NotesActivity,
-    /// Meeting notes signed in without Studio Pro: the Pro card.
-    NotesPro,
-    /// The Add-ons page signed out where the Downloader is offered, its
-    /// tools in place from before: the Downloader and Notifications stay
-    /// off, each saying "Sign in with your Oyenza account".
-    AddonsPro,
-    /// What a Pro add-on does, the page its row opens without Pro.
-    AddonsAbout,
     /// Prayer times in Jakarta following Muhammadiyah: Majelis Tarjih's
     /// times, the KHGT date, "Muhammadiyah" beside the place.
     PrayerMuhammadiyah,
@@ -1301,7 +1037,7 @@ fn fake_release() -> poni_core::update::Release {
         *last += 1;
     }
     let version = parts.iter().map(u64::to_string).collect::<Vec<_>>().join(".");
-    let repo = "https://github.com/lucacadalora/oyenza-studio/releases";
+    let repo = "https://github.com/ihzaskip/oyenza-studio/releases";
     poni_core::update::Release {
         date: "2026-10-26".into(),
         headline: "A smoother island, and fixes".into(),
@@ -1314,8 +1050,7 @@ fn fake_release() -> poni_core::update::Release {
 
 /// The AI tab's notice in its scenes, worded by the real alerts from two
 /// readings of a 5-hour limit that resets in 2 h 20 min, on the app's clock:
-/// Claude Code from 70 to 90 %, or Codex from 70 % to all used with Oyenza
-/// Inference connected.
+/// Claude Code from 70 to 90 %, or Codex from 70 % to all used.
 fn ai_alert(st: &AppState, out: bool) -> Option<studio_usage::alerts::Alert> {
     use studio_usage::{alerts, ProviderId, Snapshot, Source, Window, WindowKind};
     let id = if out { ProviderId::Codex } else { ProviderId::Claude };
@@ -1323,7 +1058,7 @@ fn ai_alert(st: &AppState, out: bool) -> Option<studio_usage::alerts::Alert> {
         windows: vec![Window::new(WindowKind::Session, "5-hour", used).resets(Some(st.unix + 2 * 3600 + 20 * 60)).length(Some(18_000))],
         ..Snapshot::new(id, st.unix, Source::Online)
     };
-    let cfg = alerts::AlertCfg { inference: out, ..st.usage_alert_cfg() };
+    let cfg = st.usage_alert_cfg();
     alerts::changes(Some(&read(0.7)), &read(if out { 1.0 } else { 0.9 }), st.unix, &cfg).into_iter().next()
 }
 
@@ -1387,7 +1122,7 @@ const SAMPLE_SCRIPT: &str = "Hi everyone, this one takes two minutes. Today I'll
 Drop any file on the island and it waits on the Shelf. Press the phone button, scan the code, and the file is on your phone. \
 No cable, no account, nothing to install on the phone.\n\nThat's it. Thanks for watching.";
 
-const SCENES: [Scene; 144] = [
+const SCENES: [Scene; 110] = [
     Scene::IdleClock,
     Scene::IdleEyes,
     Scene::Media,
@@ -1396,10 +1131,8 @@ const SCENES: [Scene; 144] = [
     Scene::VolumeHud,
     Scene::ChargingHud,
     Scene::BluetoothHud,
-    Scene::HealthNotice,
     Scene::Page(PageKind::Media),
     Scene::Page(PageKind::Focus),
-    Scene::Page(PageKind::Health),
     Scene::Page(PageKind::Shelf),
     Scene::ShelfDrop,
     Scene::ShelfPhone,
@@ -1409,17 +1142,8 @@ const SCENES: [Scene; 144] = [
     Scene::ShelfEmpty,
     Scene::Page(PageKind::Tasks),
     // In the Clipboard page's place (it left the app), so the numbers stay.
-    Scene::OyenzaSignedOut,
     Scene::Page(PageKind::Today),
     Scene::TabClick,
-    Scene::HealthSignedOut,
-    Scene::OyenzaMoney,
-    Scene::OyenzaMoneyShown,
-    Scene::OyenzaBill,
-    Scene::Page(PageKind::Oyenza),
-    Scene::OyenzaSignIn,
-    Scene::OyenzaSaved,
-    Scene::HealthSignedIn,
     Scene::GearClick,
     Scene::SettingsSigningIn,
     Scene::SettingsSignedIn,
@@ -1450,9 +1174,6 @@ const SCENES: [Scene; 144] = [
     Scene::PrayerNotice,
     Scene::PrayerPickerWorld,
     Scene::PrayerWorld,
-    Scene::OyenzaYesterday,
-    Scene::OyenzaTomorrow,
-    Scene::OyenzaMoneyOut,
     Scene::GameStats,
     Scene::GameStatsAllow,
     Scene::SystemGames,
@@ -1467,7 +1188,6 @@ const SCENES: [Scene; 144] = [
     // The Script page: empty, then partway through a reading.
     Scene::Page(PageKind::Script),
     Scene::ScriptReading,
-    Scene::HealthStale,
     // ...and with the recorder installed (Record by Paste).
     Scene::ScriptRecorder,
     // The whole PC's power: read from the power supply, then estimated.
@@ -1489,17 +1209,8 @@ const SCENES: [Scene; 144] = [
     Scene::UpdateReady,
     // The Today page signed in: the day, no app switched on, and a server
     // without the day (signed out, `Page(Today)` above shows the sign-in card).
-    Scene::TodayDay,
-    Scene::TodayNoApps,
-    Scene::TodayTiles,
-    Scene::TodayOff,
-    Scene::TodayPicked,
     // The Stocks add-on: the IHSG's day, a stock's year, the search and
     // edit mode, all on a made-up market (`stocks::sample`).
-    Scene::Page(PageKind::Stocks),
-    Scene::StocksPicked,
-    Scene::StocksSearch,
-    Scene::StocksEdit,
     // Oyenza Studio Recorder installed: the Record page's choices and the
     // recording, the closed island while it records and while paused, and
     // the Add-ons page with Screen recorder's row.
@@ -1525,16 +1236,14 @@ const SCENES: [Scene; 144] = [
     Scene::Page(PageKind::Notifications),
     Scene::NotifyAsk,
     Scene::NotifyNoPackage,
-    // The AI tab, with Studio Pro after Focus, in every picture the page has
+    // The AI tab, after Focus, in every picture the page has
     // (`AiPicture::ALL`): plans, troubles, nothing found, the first look,
-    // Oyenza Inference connecting and connected, the Services list and a
+    // the Services list and a
     // key being typed there.
     Scene::Ai(AiPicture::Plans),
     Scene::Ai(AiPicture::Troubles),
     Scene::Ai(AiPicture::Empty),
     Scene::Ai(AiPicture::Looking),
-    Scene::Ai(AiPicture::Connect),
-    Scene::Ai(AiPicture::Inference),
     Scene::Ai(AiPicture::Services),
     Scene::Ai(AiPicture::Key),
     // Its heads-up notices on the closed island.
@@ -1557,18 +1266,10 @@ const SCENES: [Scene; 144] = [
     // Meeting notes: the page before a meeting (the notes saved last), Oyen
     // listening, writing, the notes, and the closed island while he listens,
     // all made up (`seed_notes`).
-    Scene::Page(PageKind::Notes),
-    Scene::NotesListening,
-    Scene::NotesWriting,
-    Scene::NotesReady,
-    Scene::NotesActivity,
-    Scene::NotesPro,
     // The Add-ons page signed out, without Pro: no Downloader row.
-    Scene::AddonsPro,
     // The island dragged along the top edge, closed, then open at the edge.
     Scene::IslandDrag,
     Scene::IslandOpenAtEdge,
-    Scene::AddonsAbout,
     // Prayer times following Muhammadiyah (its times and the KHGT date), and
     // the place picker before anything is typed: the Kemenag / Muhammadiyah row.
     Scene::PrayerMuhammadiyah,
@@ -1595,7 +1296,6 @@ impl Scene {
             Scene::VolumeHud => "volume-hud".into(),
             Scene::ChargingHud => "charging-hud".into(),
             Scene::BluetoothHud => "bluetooth-hud".into(),
-            Scene::HealthNotice => "health-notice".into(),
             Scene::Page(p) => format!("page-{}", p.key()),
             Scene::ShelfDrop => "page-shelf-drop".into(),
             Scene::ShelfEmpty => "page-shelf-empty".into(),
@@ -1603,14 +1303,6 @@ impl Scene {
             Scene::ShelfPhoneAsk => "page-shelf-phone-ask".into(),
             Scene::ShelfPhoneReceive => "page-shelf-phone-receive".into(),
             Scene::TabClick => "tab-click-media".into(),
-            Scene::HealthSignedOut => "page-health-signed-out".into(),
-            Scene::OyenzaMoney => "oyenza-money".into(),
-            Scene::OyenzaMoneyShown => "oyenza-money-shown".into(),
-            Scene::OyenzaBill => "oyenza-bill".into(),
-            Scene::OyenzaSignedOut => "page-oyenza-signed-out".into(),
-            Scene::OyenzaSignIn => "page-oyenza-signin".into(),
-            Scene::OyenzaSaved => "page-oyenza-saved".into(),
-            Scene::HealthSignedIn => "page-health-signed-in".into(),
             // Reached by clicking the gear: the signed-out Settings page.
             Scene::GearClick => "page-settings".into(),
             Scene::SettingsSigningIn => "page-settings-signing-in".into(),
@@ -1637,9 +1329,6 @@ impl Scene {
             Scene::PrayerNotice => "prayer-notice".into(),
             Scene::PrayerPickerWorld => "page-prayer-picker-world".into(),
             Scene::PrayerWorld => "page-prayer-world".into(),
-            Scene::OyenzaYesterday => "page-oyenza-yesterday".into(),
-            Scene::OyenzaTomorrow => "page-oyenza-tomorrow".into(),
-            Scene::OyenzaMoneyOut => "oyenza-money-out".into(),
             Scene::GameStats => "game-stats".into(),
             Scene::GameStatsAllow => "game-stats-allow".into(),
             Scene::SystemGames => "page-system-games".into(),
@@ -1650,7 +1339,6 @@ impl Scene {
             Scene::MediaLyric => "media-lyric".into(),
             Scene::LowBatteryHud => "low-battery-hud".into(),
             Scene::ScriptReading => "page-script-reading".into(),
-            Scene::HealthStale => "page-health-stale".into(),
             Scene::ScriptRecorder => "page-script-recorder".into(),
             Scene::SystemPower => "page-system-power".into(),
             Scene::SystemPowerEstimate => "page-system-power-estimate".into(),
@@ -1664,14 +1352,6 @@ impl Scene {
             Scene::SettingsUpdate => "page-settings-update".into(),
             Scene::UpdateSheet => "page-update-sheet".into(),
             Scene::UpdateReady => "page-update-ready".into(),
-            Scene::TodayDay => "page-today-day".into(),
-            Scene::TodayNoApps => "page-today-no-apps".into(),
-            Scene::TodayTiles => "page-today-tiles".into(),
-            Scene::TodayOff => "page-today-off".into(),
-            Scene::TodayPicked => "page-today-picked".into(),
-            Scene::StocksPicked => "page-stocks-picked".into(),
-            Scene::StocksSearch => "page-stocks-search".into(),
-            Scene::StocksEdit => "page-stocks-edit".into(),
             Scene::RecordLive => "page-record-live".into(),
             Scene::RecordActivity => "record-activity".into(),
             Scene::RecordPaused => "record-paused-activity".into(),
@@ -1694,13 +1374,6 @@ impl Scene {
             Scene::IeltsCueCard => "page-ielts-cue-card".into(),
             Scene::IeltsResult => "page-ielts-result".into(),
             Scene::IeltsMicDenied => "page-ielts-mic-denied".into(),
-            Scene::NotesListening => "page-notes-listening".into(),
-            Scene::NotesWriting => "page-notes-writing".into(),
-            Scene::NotesReady => "page-notes-ready".into(),
-            Scene::NotesActivity => "notes-activity".into(),
-            Scene::NotesPro => "page-notes-pro".into(),
-            Scene::AddonsPro => "page-addons-pro".into(),
-            Scene::AddonsAbout => "page-addons-about".into(),
             Scene::PrayerMuhammadiyah => "page-prayer-muhammadiyah".into(),
             Scene::PrayerPickerFollow => "page-prayer-picker-follow".into(),
             Scene::IslandDrag => "island-dragged".into(),
@@ -1717,9 +1390,6 @@ impl Scene {
             Scene::Page(p) => Some(p),
             Scene::ShelfDrop | Scene::ShelfEmpty | Scene::ShelfPhone | Scene::ShelfPhoneAsk | Scene::ShelfPhoneReceive => Some(PageKind::Shelf),
             Scene::TabClick => Some(PageKind::ALL[0]),
-            Scene::HealthSignedOut => Some(PageKind::Health),
-            Scene::OyenzaSignedOut | Scene::OyenzaSignIn | Scene::OyenzaSaved | Scene::OyenzaYesterday | Scene::OyenzaTomorrow => Some(PageKind::Oyenza),
-            Scene::HealthSignedIn | Scene::HealthStale => Some(PageKind::Health),
             Scene::GearClick
             | Scene::SettingsSigningIn
             | Scene::SettingsSignedIn
@@ -1745,17 +1415,14 @@ impl Scene {
             Scene::JaOffer | Scene::JaGetting => Some(PageKind::Media),
             Scene::PrayerPicker | Scene::PrayerPickerWorld | Scene::PrayerWorld | Scene::PrayerMuhammadiyah | Scene::PrayerPickerFollow => Some(PageKind::Prayer),
             Scene::ScriptReading | Scene::ScriptRecorder => Some(PageKind::Script),
-            Scene::TodayDay | Scene::TodayNoApps | Scene::TodayTiles | Scene::TodayOff | Scene::TodayPicked => Some(PageKind::Today),
-            Scene::StocksPicked | Scene::StocksSearch | Scene::StocksEdit => Some(PageKind::Stocks),
             Scene::RecordLive => Some(PageKind::Record),
-            Scene::AddonsRecorder | Scene::AddonsDownloader | Scene::AddonsPro | Scene::AddonsAbout => Some(PageKind::Addons),
+            Scene::AddonsRecorder | Scene::AddonsDownloader => Some(PageKind::Addons),
             Scene::DownloadsEmpty => Some(PageKind::Downloads),
             Scene::NotifyAsk | Scene::NotifyNoPackage => Some(PageKind::Notifications),
             Scene::Ai(_) => Some(PageKind::Ai),
             Scene::IeltsSignedOut | Scene::IeltsTalking | Scene::IeltsRecording | Scene::IeltsCueCard | Scene::IeltsResult | Scene::IeltsMicDenied => {
                 Some(PageKind::Ielts)
             }
-            Scene::NotesListening | Scene::NotesWriting | Scene::NotesReady | Scene::NotesPro => Some(PageKind::Notes),
             Scene::IslandOpenAtEdge => Some(PageKind::Media),
             Scene::CaffeineKinds | Scene::CaffeineAdd | Scene::CaffeineEmpty | Scene::CaffeineLate => Some(PageKind::Caffeine),
             _ => None,
@@ -1777,20 +1444,7 @@ impl Scene {
     /// The Downloader is offered (Windows outside the Store build), in its
     /// own scenes only: the other Add-ons pictures keep their rows.
     fn downloader(self) -> bool {
-        matches!(self, Scene::Page(PageKind::Downloads) | Scene::DownloadsEmpty | Scene::AddonsDownloader | Scene::DownloadActivity | Scene::AddonsPro)
-    }
-
-    /// Signed in to an account with Studio Pro: the Downloader's own scenes
-    /// and the AI tab's, which only Pro shows.
-    fn pro(self) -> bool {
-        matches!(
-            self,
-            Scene::Page(PageKind::Downloads)
-                | Scene::DownloadsEmpty
-                | Scene::AddonsDownloader
-                | Scene::DownloadActivity
-                | Scene::Ai(_)
-        )
+        matches!(self, Scene::Page(PageKind::Downloads) | Scene::DownloadsEmpty | Scene::AddonsDownloader | Scene::DownloadActivity)
     }
 
     /// Oyenza Studio Recorder is installed (Record by the Script page's Paste,
@@ -1816,40 +1470,19 @@ impl Scene {
         crate::state::RecView { phase: Some(phase), elapsed_ms, at: now + 3600.0, ..Default::default() }
     }
 
-    /// Scenes that show something from Oyenza (every other one is signed out,
-    /// so their screenshots stay what they were before Oyenza).
+    /// Scenes signed in to the account (or signing in); every other one is
+    /// signed out.
     fn oyenza(self) -> bool {
         matches!(
             self,
-            Scene::OyenzaMoney
-                | Scene::OyenzaMoneyShown
-                | Scene::OyenzaBill
-                | Scene::OyenzaSignIn
-                | Scene::OyenzaSaved
-                | Scene::OyenzaYesterday
-                | Scene::OyenzaTomorrow
-                | Scene::OyenzaMoneyOut
-                | Scene::Page(PageKind::Oyenza)
-                | Scene::HealthSignedIn
-                | Scene::HealthStale
-                | Scene::SettingsSigningIn
+            Scene::SettingsSigningIn
                 | Scene::SettingsSignedIn
-                | Scene::TodayDay
-                | Scene::TodayNoApps
-                | Scene::TodayTiles
-                | Scene::TodayOff
-                | Scene::TodayPicked
                 | Scene::Page(PageKind::Ielts)
                 | Scene::IeltsTalking
                 | Scene::IeltsRecording
                 | Scene::IeltsCueCard
                 | Scene::IeltsResult
                 | Scene::IeltsMicDenied
-                | Scene::Page(PageKind::Notes)
-                | Scene::NotesListening
-                | Scene::NotesWriting
-                | Scene::NotesReady
-                | Scene::NotesPro
         )
     }
 
@@ -2485,186 +2118,6 @@ fn ielts_server(listener: std::net::TcpListener, seen: &Mutex<Vec<String>>, stop
     }
 }
 
-/// `notes-turn`: after the IELTS turn, a made-up meeting is handed over end
-/// to end with no microphone and no network. Two parts of a tone in 16 kHz
-/// WAV stand in for what the microphone and the PC's sound would have made,
-/// and a server of the run's own on 127.0.0.1 answers `/island/notes/*` the
-/// way catat-server's do. The app's own sender does the rest: the start,
-/// both parts as raw bytes, the finish, the asking, the notes saved as
-/// Markdown, the audio deleted, the server told to let go. The check reads
-/// what the server saw, the file saved and the audio left.
-struct NotesRun {
-    seen: Arc<Mutex<Vec<String>>>,
-    stop: Arc<AtomicBool>,
-    server: Option<JoinHandle<()>>,
-    dir: PathBuf,
-    started: Instant,
-}
-
-/// The run's meeting on its server, and the key it takes.
-const NOTES_ID: &str = "n-1";
-const NOTES_KEY: &str = "oyzd_selftest";
-/// How long the turn may take: one ask after the 4 s wait, on a slow runner.
-const NOTES_TURN_S: f64 = 30.0;
-
-impl NotesRun {
-    fn begin(app: &mut App) -> NotesRun {
-        let seen = Arc::new(Mutex::new(Vec::new()));
-        let stop = Arc::new(AtomicBool::new(false));
-        let dir = paths::notes_audio_dir().join("meeting-selftest");
-        let mut run = NotesRun { seen: seen.clone(), stop: stop.clone(), server: None, dir: dir.clone(), started: Instant::now() };
-        let listener = match std::net::TcpListener::bind("127.0.0.1:0") {
-            Ok(l) => l,
-            Err(e) => {
-                run.note(format!("no listener ({e})"));
-                return run;
-            }
-        };
-        let port = listener.local_addr().map(|a| a.port()).unwrap_or(0);
-        let _ = listener.set_nonblocking(true);
-        run.server = Some(std::thread::spawn(move || notes_server(listener, &seen, &stop)));
-        let _ = fs::create_dir_all(&dir);
-        let rate = poni_core::notes::RATE;
-        let parts = vec![dir.join("part-000.wav"), dir.join("part-001.wav")];
-        for (path, secs) in parts.iter().zip([2.0, 1.0]) {
-            if let Err(e) = fs::write(path, poni_core::ielts::tone_wav(secs, 220.0, rate)) {
-                run.note(format!("can't write a stand-in part ({e})"));
-            }
-        }
-        crate::pinfo!("selftest: notes turn against 127.0.0.1:{port}");
-        app.selftest_notes_begin(format!("http://127.0.0.1:{port}"), NOTES_KEY.into(), crate::services::notes::Take { dir, parts, secs: 3.0 });
-        run
-    }
-
-    fn note(&self, line: String) {
-        if let Ok(mut s) = self.seen.lock() {
-            s.push(line);
-        }
-    }
-
-    /// One self-test step, `t` seconds into the run: the check once it's over.
-    fn step(&mut self, app: &mut App, t: f64) -> Option<Check> {
-        use poni_core::notes::Phase as P;
-        match &app.st.notes.phase {
-            P::Ready => Some(self.finish(app, None)),
-            P::Failed(p) => {
-                let why = format!("{p:?}");
-                Some(self.finish(app, Some(why)))
-            }
-            _ if t > NOTES_TURN_S => Some(self.finish(app, Some(format!("still {:?} after {NOTES_TURN_S} s", app.st.notes.phase)))),
-            _ => None,
-        }
-    }
-
-    fn finish(&mut self, app: &mut App, failed: Option<String>) -> Check {
-        let ms = self.started.elapsed().as_millis();
-        let saved = app.st.notes.last.as_ref().map(|s| s.file.clone());
-        let md = saved.as_ref().and_then(|f| fs::read_to_string(f).ok()).unwrap_or_default();
-        let audio_left = self.dir.exists();
-        app.selftest_notes_end();
-        self.stop.store(true, std::sync::atomic::Ordering::SeqCst);
-        if let Some(h) = self.server.take() {
-            let _ = h.join();
-        }
-        let _ = fs::remove_dir_all(&self.dir);
-        let seen = self.seen.lock().map(|s| s.clone()).unwrap_or_default();
-        let has = |want: &str| seen.iter().any(|l| l == want);
-        // Wine has no WinRT HttpClient (Windows.Web.Http): nothing reaches the
-        // server there, and the run is Windows CI's to judge.
-        let wine = under_wine() && seen.is_empty() && failed.as_deref() == Some("Offline");
-        let wrote = md.contains("# Self-test sync")
-            && md.contains("- [ ] Send the deck (Rina, Friday)")
-            && md.contains("**[0:01] Speaker 1:** Let's start.")
-            && saved.as_deref().is_some_and(|f| f.ends_with("2026-10-29 14.05 Self-test sync.md"));
-        let handed = failed.is_none()
-            && has("POST /island/notes key lang=auto")
-            && has(&format!("POST /island/notes/{NOTES_ID}/part/0 key wav=16000/1/16 2.0s"))
-            && has(&format!("POST /island/notes/{NOTES_ID}/part/1 key wav=16000/1/16 1.0s"))
-            && has(&format!("POST /island/notes/{NOTES_ID}/finish key"))
-            && has(&format!("GET /island/notes/{NOTES_ID} key"))
-            && has(&format!("DELETE /island/notes/{NOTES_ID} key"))
-            && wrote
-            && !audio_left;
-        let ok = handed || wine;
-        let note = if wine { "Wine has no WinRT HttpClient, so this runs on Windows only; " } else { "" };
-        let detail = format!(
-            "{note}{}server saw [{}]; notes {}; audio left: {audio_left}; {ms} ms",
-            failed.map_or(String::new(), |s| format!("stopped at {s}; ")),
-            seen.join(" | "),
-            if wrote { "saved" } else if saved.is_some() { "saved but not as expected" } else { "not saved" }
-        );
-        crate::pinfo!("selftest: notes-turn {}: {detail}", if ok { "ok" } else { "FAILED" });
-        check("notes-turn", ok, detail)
-    }
-}
-
-/// What `GET /island/notes/:id` answers once the run's meeting is written up.
-const NOTES_DONE: &str = r#"{"status":"done","secs":3,"notes":{"title":"Self-test sync","lang":"en","summary":["The deck goes out on Friday."],
-"decisions":["Ship on Friday"],"actions":[{"who":"Rina","what":"Send the deck","when":"Friday"}],"topics":[{"title":"Deck","points":["Two slides left"]}]},
-"transcript":[{"t":1,"who":"Speaker 1","text":"Let's start."},{"t":2,"who":"Rina","text":"I'll send the deck on Friday."}]}"#;
-
-/// The notes routes as catat-server answers them, for one meeting, until
-/// `stop`. What each request carried goes into `seen`, one line each.
-fn notes_server(listener: std::net::TcpListener, seen: &Mutex<Vec<String>>, stop: &AtomicBool) {
-    use std::io::{Read, Write};
-    let meeting = format!("/island/notes/{NOTES_ID}");
-    while !stop.load(std::sync::atomic::Ordering::SeqCst) {
-        let Ok((mut c, _)) = listener.accept() else {
-            std::thread::sleep(std::time::Duration::from_millis(20));
-            continue;
-        };
-        let _ = c.set_nonblocking(false);
-        let _ = c.set_read_timeout(Some(std::time::Duration::from_secs(5)));
-        // The headers, then as much body as Content-Length says.
-        let (mut buf, mut chunk, mut continued) = (Vec::new(), [0u8; 16 * 1024], false);
-        let (head, body) = loop {
-            match c.read(&mut chunk) {
-                Ok(0) | Err(_) => break (String::new(), Vec::new()),
-                Ok(n) => buf.extend_from_slice(&chunk[..n]),
-            }
-            let Some(end) = buf.windows(4).position(|w| w == b"\r\n\r\n") else { continue };
-            let head = String::from_utf8_lossy(&buf[..end]).to_ascii_lowercase();
-            let len = head.lines().find_map(|l| l.strip_prefix("content-length:").map(|v| v.trim().parse::<usize>().unwrap_or(0))).unwrap_or(0);
-            if head.contains("expect: 100-continue") && !continued {
-                continued = true;
-                let _ = c.write_all(b"HTTP/1.1 100 Continue\r\n\r\n");
-            }
-            if buf.len() >= end + 4 + len {
-                break (String::from_utf8_lossy(&buf[..end]).into_owned(), buf[end + 4..end + 4 + len].to_vec());
-            }
-        };
-        let mut first = head.lines().next().unwrap_or("").split_whitespace();
-        let (method, path) = (first.next().unwrap_or("").to_string(), first.next().unwrap_or("").to_string());
-        let key = head.lines().any(|l| l.split_once(':').is_some_and(|(k, v)| k.eq_ignore_ascii_case("authorization") && v.trim() == format!("Bearer {NOTES_KEY}")));
-        let mut line = format!("{method} {path} {}", if key { "key" } else { "no key" });
-        let (status, answer) = match (method.as_str(), path.as_str()) {
-            ("POST", "/island/notes") => {
-                let json: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
-                line.push_str(&format!(" lang={}", json["lang"].as_str().unwrap_or("?")));
-                (200, format!(r#"{{"id":"{NOTES_ID}","part_max":12582912,"max_secs":10800,"today":{{"used_min":0,"cap_min":240}}}}"#))
-            }
-            ("POST", p) if p.starts_with(&format!("{meeting}/part/")) => {
-                let n: u32 = p.rsplit('/').next().and_then(|n| n.parse().ok()).unwrap_or(0);
-                match poni_core::ielts::wav_info(&body) {
-                    Some(w) => line.push_str(&format!(" wav={}/{}/{} {:.1}s", w.rate, w.channels, w.bits, w.secs)),
-                    None => line.push_str(" no wav"),
-                }
-                (200, format!(r#"{{"next":{},"secs":{}}}"#, n + 1, 3))
-            }
-            ("POST", p) if p == format!("{meeting}/finish") => (202, r#"{"status":"working"}"#.to_string()),
-            ("GET", p) if p == meeting => (200, NOTES_DONE.to_string()),
-            ("DELETE", p) if p == meeting => (200, r#"{"ok":true}"#.to_string()),
-            _ => (404, r#"{"error":"no_notes"}"#.to_string()),
-        };
-        if let Ok(mut s) = seen.lock() {
-            s.push(line);
-        }
-        let _ = c.write_all(format!("HTTP/1.1 {status} OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{answer}", answer.len()).as_bytes());
-    }
-}
-
-// ---------------------------------------------------------------- report
-
 #[derive(Clone, Debug, Serialize)]
 struct Check {
     name: String,
@@ -2747,8 +2200,6 @@ enum Phase {
     /// The IELTS coach's one turn against a server of the self-test's own
     /// (Classic runs only; see [`IeltsRun`]).
     Ielts { since: f64 },
-    /// After the IELTS turn: one meeting handed over end to end (`NotesRun`).
-    Notes { since: f64 },
     /// The Diorama theme's own pictures of its resting pill, `RESTS[k]`,
     /// each settled like a scene. Diorama runs only: after the scenes and
     /// the Settings window (or the scene deadline), or with
@@ -2769,7 +2220,6 @@ pub struct SelfTest {
     /// Where the media-lyric scene holds the song: inside a sung line.
     lyric_pos: f64,
     /// The sample week every scene shows, except the signed-out Health page.
-    health: Option<HealthSnapshot>,
     states: Vec<StateReport>,
     checks: Vec<Check>,
     writes: Vec<(String, JoinHandle<Vec<String>>)>,
@@ -2822,8 +2272,6 @@ pub struct SelfTest {
     frames: Option<crate::services::frames::Frames>,
     /// The IELTS one-turn run, while it goes.
     ielts: Option<IeltsRun>,
-    /// The meeting-notes run, while it goes.
-    notes: Option<NotesRun>,
 }
 
 /// Transitions recorded in animation mode: (name, from, to).
@@ -2832,7 +2280,7 @@ const ANIMS: [(&str, Scene, Scene); 5] = [
     ("page", Scene::Page(PageKind::Media), Scene::Page(PageKind::Focus)),
     ("collapse", Scene::Page(PageKind::Media), Scene::Media),
     ("hud", Scene::Media, Scene::VolumeHud),
-    ("notice", Scene::IdleClock, Scene::HealthNotice),
+    ("notice", Scene::IdleClock, Scene::UpdateNotice),
 ];
 /// Frames recorded per transition (~16 ms apart).
 const ANIM_FRAMES: usize = 40;
@@ -2875,7 +2323,6 @@ impl SelfTest {
             lyrics: LyricsState { track_key: track_key.clone(), ..Default::default() },
             track_key,
             lyric_pos: TRACK_POS_S,
-            health: None,
             states: Vec::new(),
             checks: Vec::new(),
             writes: Vec::new(),
@@ -2902,7 +2349,6 @@ impl SelfTest {
             addon_fetch: None,
             frames: None,
             ielts: None,
-            notes: None,
         }
     }
 
@@ -3043,7 +2489,6 @@ impl SelfTest {
         self.lyrics = LyricsState { track_key: self.track_key.clone(), status: LyricsStatus::Found, lyrics: Some(parsed), source: "Sample".into(), ruby, wants_ja_readings };
 
         seed_tasks(st);
-        self.health = Some(sample_health(st));
         let today = st.day_key();
         st.store.focus_sessions.insert(today, 2);
         self.seed_shelf(st);
@@ -3109,7 +2554,7 @@ impl SelfTest {
         if elapsed > SCENE_DEADLINE
             && !matches!(
                 self.phase,
-                Phase::Finish { .. } | Phase::Done(_) | Phase::Anim { .. } | Phase::Loop | Phase::Scroll | Phase::Ielts { .. } | Phase::Notes { .. } | Phase::Rests { .. }
+                Phase::Finish { .. } | Phase::Done(_) | Phase::Anim { .. } | Phase::Loop | Phase::Scroll | Phase::Ielts { .. } | Phase::Rests { .. }
             )
         {
             let at = match &self.phase {
@@ -3245,7 +2690,7 @@ impl SelfTest {
                 // then General and Appearance light.
                 let mut list: Vec<_> = crate::settings_window::sections(&app.st).into_iter().map(|s| (s, false)).collect();
                 list.extend([(crate::settings_window::Section::General, true), (crate::settings_window::Section::Appearance, true)]);
-                // AI usage takes Studio Pro: its section as an account with Pro has it.
+                // AI usage: its section as it shows while on.
                 let ai = crate::settings_window::Section::Ai;
                 if !list.contains(&(ai, false)) {
                     list.push((ai, false));
@@ -3257,18 +2702,12 @@ impl SelfTest {
                 }
                 match list.get(k) {
                     Some(&(section, light)) => {
-                        let was = (app.st.oyenza.link.clone(), app.st.oyenza.pro);
-                        if section == ai {
-                            app.st.oyenza.link = OyenzaLink::Connected { account: "a\u{2022}\u{2022}\u{2022}@example.com".into() };
-                            app.st.oyenza.pro = Some(true);
-                        }
                         let prayer_was = (app.st.addons.get(PRAYER_TIMES.id).cloned(), app.st.prayer.places.clone());
                         if section == prayer {
                             app.st.addons.insert(PRAYER_TIMES.id, AddonStatus::Ready);
                             app.st.prayer.places.get_or_insert_with(|| std::sync::Arc::new(PlaceList::parse(SAMPLE_PLACES).expect("sample places")));
                         }
                         let (w, h, px) = app.selftest_settings_shot(section, light);
-                        (app.st.oyenza.link, app.st.oyenza.pro) = was;
                         if section == prayer {
                             match prayer_was.0 {
                                 Some(a) => app.st.addons.insert(PRAYER_TIMES.id, a),
@@ -3408,14 +2847,6 @@ impl SelfTest {
                 let run = self.ielts.get_or_insert_with(|| IeltsRun::begin(app));
                 if let Some(c) = run.step(app, now - since) {
                     self.ielts = None;
-                    self.checks.push(c);
-                    self.phase = Phase::Notes { since: clock::mono() };
-                }
-            }
-            Phase::Notes { since } => {
-                let run = self.notes.get_or_insert_with(|| NotesRun::begin(app));
-                if let Some(c) = run.step(app, now - since) {
-                    self.notes = None;
                     self.checks.push(c);
                     self.phase = self.after_scenes(clock::mono());
                 }
@@ -3708,11 +3139,6 @@ impl SelfTest {
         st.volume = VolumeState { level: 0.64, muted: false, known: true };
         st.pinned = false;
         st.drag_hover = scene == Scene::ShelfDrop;
-        st.health = match scene {
-            Scene::HealthSignedOut | Scene::HealthSignedIn => None,
-            Scene::HealthStale => Some(sample_week(st, 3)),
-            _ => self.health.clone(),
-        };
         // Start with Windows as Settings shows it once read (it's read off the UI thread).
         st.ui.autostart = Some(true);
         // Hide in full-screen apps (the default), except in the Stay on top scene.
@@ -3784,24 +3210,6 @@ impl SelfTest {
         st.notice = match scene {
             Scene::UpdateNotice => Some(crate::updates::new_version_notice(&fake_release(), st.accent, until)),
             Scene::UpdatedNotice => Some(crate::updates::updated_notice(Some(fake_release().headline), until)),
-            Scene::HealthNotice => {
-                let steps = st.health.as_ref().map_or(0, |h| h.steps_on(&st.local.day_key()));
-                Some(crate::pages::health::goal_notice(steps, until))
-            }
-            Scene::OyenzaMoney | Scene::OyenzaMoneyShown => {
-                let hidden = scene == Scene::OyenzaMoney;
-                Some(Notice {
-                    icon: Icon::MoneyIn,
-                    color: palette::GREEN,
-                    title: "Money in · BCA".into(),
-                    title_dim: String::new(),
-                    subtitle: if hidden { "Amount and sender hidden".into() } else { "Rp 1.250.000 · Gaji Oktober".into() },
-                    until,
-                    action: Some(NoticeAction::OpenPage(PageKind::Oyenza)),
-                    inline: Some(InlineAction::ShowAmount),
-                    reveal: hidden.then(|| "Rp 1.250.000 · Gaji Oktober".into()),
-                })
-            }
             Scene::PairedNotice => Some(Notice {
                 icon: Icon::Phone,
                 color: palette::GREEN,
@@ -3813,41 +3221,14 @@ impl SelfTest {
                 inline: None,
                 reveal: None,
             }),
-            Scene::OyenzaMoneyOut => Some(Notice {
-                icon: Icon::MoneyOut,
-                color: palette::BLUE,
-                title: "Money out · BCA".into(),
-                title_dim: String::new(),
-                subtitle: "Amount and payee hidden".into(),
-                until,
-                action: Some(NoticeAction::OpenPage(PageKind::Oyenza)),
-                inline: Some(InlineAction::ShowAmount),
-                reveal: Some("Rp 89.000 · Tokopedia".into()),
-            }),
             Scene::MessageNotice | Scene::MessageHidden => {
                 let choices = NotificationSettings { text: scene == Scene::MessageNotice, ..Default::default() };
                 crate::pages::notifications::message_notice(&sample_message(), &choices, st.accent, now).map(|n| Notice { until, ..n })
             }
-            Scene::OyenzaBill => Some(Notice {
-                icon: Icon::Calendar,
-                color: palette::ORANGE,
-                title: "Spotify renews tomorrow".into(),
-                title_dim: String::new(),
-                subtitle: "Amount hidden".into(),
-                until,
-                action: Some(NoticeAction::OpenPage(PageKind::Oyenza)),
-                inline: Some(InlineAction::ShowAmount),
-                reveal: Some("Rp 54.990".into()),
-            }),
             Scene::AiNotice | Scene::AiNoticeOut => ai_alert(st, scene == Scene::AiNoticeOut).map(|a| crate::state::usage_notice(&a, st.accent, until)),
             _ => None,
         };
-        st.oyenza = if scene.oyenza() { fake_oyenza(st, scene, now) } else { OyenzaState::default() };
-        // Today's list starts at today, or at the date clicked ten days on.
-        st.ui.today_pick = (scene == Scene::TodayPicked).then(|| poni_core::agenda::day_num(&st.day_key()).unwrap_or(0) + 10);
-        st.ui.today_jump = st.ui.today_pick.is_some();
-        st.ui.today_scroll = 0.0;
-        st.ui.today_drawn = now;
+        st.oyenza = if scene.oyenza() { fake_oyenza(scene, now) } else { OyenzaState::default() };
         // Add-ons: what the page shows (settings stay as they are, so the worker downloads nothing).
         let addon = match scene {
             Scene::AddonsDownloading => AddonStatus::Downloading { done: 1_300_000, total: PRAYER_TIMES.size() },
@@ -3865,28 +3246,22 @@ impl SelfTest {
         // Script reader: on for the Script page's scenes, off (no tab) elsewhere.
         let script = scene.page() == Some(PageKind::Script);
         st.addons.insert(SCRIPT_READER.id, if script { AddonStatus::Ready } else { AddonStatus::Off });
-        // System and Health (add-ons, off by default): on for their own
-        // pages' scenes only (and Health for its goal notice).
+        // System (an add-on, off by default): on for its own page's scenes only.
         let system = scene.page() == Some(PageKind::System);
-        let health = scene.page() == Some(PageKind::Health) || scene == Scene::HealthNotice;
-        let stocks = scene.page() == Some(PageKind::Stocks);
         // Notifications (on by default, but only in the Store copy: the self-test
         // runs the download): as the Store copy for its page, its notices and
         // the Settings scene with its chip.
         st.notify_can = scene.page() == Some(PageKind::Notifications) || matches!(scene, Scene::MessageNotice | Scene::MessageHidden | Scene::SettingsTabsStore);
         let ielts = scene.page() == Some(PageKind::Ielts);
-        // Meeting notes: on for its page and its pill.
-        let notes = scene.page() == Some(PageKind::Notes) || scene == Scene::NotesActivity;
         let caffeine = scene.page() == Some(PageKind::Caffeine);
-        for (id, on) in [(SYSTEM.id, system), (HEALTH.id, health), (STOCKS.id, stocks), (IELTS.id, ielts), (MEETING_NOTES.id, notes), (CAFFEINE.id, caffeine)] {
+        for (id, on) in [(SYSTEM.id, system), (IELTS.id, ielts), (CAFFEINE.id, caffeine)] {
             st.settings.set_addon(id, on);
             st.addons.insert(id, if on { AddonStatus::Ready } else { AddonStatus::Off });
         }
-        seed_stocks(st, scene, now);
         seed_caffeine(st, scene);
         // The Downloader: offered in its own scenes, and on there (its tools
         // in place, so the tab shows) except on the Add-ons page, whose row
-        // shows it off; signed out (`AddonsPro`) its row says what it is.
+        // shows it off.
         // Its setting stays as it is, as for Prayer times above.
         st.downloader_offered = scene.downloader();
         let tab = scene.downloader() && scene != Scene::AddonsDownloader;
@@ -3894,14 +3269,6 @@ impl SelfTest {
         seed_downloads(st, scene);
         seed_notifications(st, scene);
         seed_ielts(st, scene, now);
-        seed_notes(st, scene, now);
-        st.ui.addon_about = (scene == Scene::AddonsAbout).then_some(poni_core::addons::AI_USAGE.id);
-        if scene.pro() {
-            st.oyenza.link = OyenzaLink::Connected { account: "a•••@example.com".into() };
-            st.oyenza.pro = Some(true);
-        }
-        // Oyen in the Oyenza tab long since arrived: at rest in every picture.
-        st.ui.oyen_tab = Some((crate::oyen::TabMove::Arrive, f64::NEG_INFINITY));
         if scene.media_playing() {
             st.lyrics.wants_ja_readings = self.lyrics.wants_ja_readings || matches!(scene, Scene::JaOffer | Scene::JaGetting);
         }
@@ -4419,12 +3786,6 @@ impl SelfTest {
             let note = if wine { " (Wine, which can't leave a window out)" } else { "" };
             checks.push(check("script-hidden-from-capture", hidden == can || (wine && !hidden), format!("display affinity: {said}, Windows build {build:?}{note}")));
         }
-        if scene == Scene::NotesActivity {
-            // A meeting being taken down rests on the closed island: Oyen, the dot, the time.
-            let (mode, _) = app.selftest_mode();
-            let want = Mode::Activity(crate::activities::Activity::Notes);
-            checks.push(check("notes-pill", mode == want, format!("{mode:?}, want {want:?}")));
-        }
         if matches!(scene, Scene::RecordActivity | Scene::RecordPaused) {
             // The recording rests on the closed island, ahead of everything else.
             let (mode, _) = app.selftest_mode();
@@ -4443,7 +3804,7 @@ impl SelfTest {
             // The Downloads tab shows once the Downloader is on, not while
             // it's off, nor without Pro with its tools in place.
             let shown = pages::tabs(&app.st).contains(&PageKind::Downloads);
-            let want = !matches!(scene, Scene::AddonsDownloader | Scene::AddonsPro);
+            let want = !matches!(scene, Scene::AddonsDownloader);
             checks.push(check("downloads-tab", shown == want, format!("Downloads tab shown: {shown}, want {want}")));
         }
 
@@ -4695,31 +4056,6 @@ fn seed_tasks(st: &mut AppState) {
     if let Some(id) = done {
         tasks.toggle(id, (unix - 1800).max(day_start + 60));
     }
-}
-
-/// A week of steps as Oyenza would send it: today just over the goal.
-fn sample_health(st: &AppState) -> HealthSnapshot {
-    sample_week(st, 0)
-}
-
-/// The sample week as the phone read it `days_ago` days back, its last day then.
-fn sample_week(st: &AppState, days_ago: i64) -> HealthSnapshot {
-    let today = st.local.add_days(-days_ago);
-    let week = [5210u32, 9120, 7480, 3960, 10230, 6840, 8412];
-    let days = week
-        .iter()
-        .enumerate()
-        .map(|(i, &steps)| {
-            let last = i + 1 == week.len();
-            HealthDay {
-                date: today.add_days(i as i64 + 1 - week.len() as i64).day_key(),
-                steps,
-                distance_m: last.then_some(6140),
-                active_kcal: last.then_some(342),
-            }
-        })
-        .collect();
-    HealthSnapshot { goal: 8000, source: HealthSource::AppleHealth, updated_at: st.unix - days_ago * 86_400 - 8 * 60, days }
 }
 
 /// Where the media-lyric scene holds the song: 1.5 s into the first sung line

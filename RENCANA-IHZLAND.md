@@ -22,10 +22,11 @@ Keputusan user (12 Nov 2026) ada di bawah. Centang tiap langkah setelah selesai.
 3. [x] **Ikon & art**: ikon aplikasi, art installer (`installer/art`), `docs/brand`, DMG Mac, menu bar Mac (Pulo di ubin gelap, `tools/make_brand.py`). Situs: langkah 11.
 4. [x] **Karakter orisinal** (Pulo, pulau kecil bertunas) pengganti Oyen (tema dan mood sama: istirahat, musik,
        kursor, malam). Digambar dengan kode, bukan meniru kucing Oyen.
-5. [ ] **Buang fitur akun Oyenza**: tab Oyenza (uang masuk/keluar, tagihan, catat
+5. [x] **Buang fitur akun Oyenza**: tab Oyenza (uang masuk/keluar, tagihan, catat
        pengeluaran), Health (langkah), Oyenza Inference di AI usage, Meeting notes
        (server Oyenza), Stocks (oyenza.trade). Pro dibuka lokal untuk semua add-on yang
-       tersisa.
+       tersisa. Agenda Today (Google Calendar/Gmail lewat Oyenza) juga dibuang: Today kini
+       tanggal + ubin statistik. Login tinggal di Settings dan menu (`pages/account.rs`).
 6. [ ] **Login ihz.app**: device code seperti TV (island menampilkan kode, disetujui
        di `ihz.app/device` saat sudah login Google). Rute baru di `ihz-web`:
        `POST /api/device/start`, `POST /api/device/token`, halaman `/device`.

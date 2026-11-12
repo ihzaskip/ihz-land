@@ -21,7 +21,6 @@ pub enum Icon {
     Lyrics,
     Timer,
     Coffee,
-    Steps,
     Tray,
     ListChecks,
     Check,
@@ -31,7 +30,6 @@ pub enum Icon {
     Minus,
     Close,
     Clipboard,
-    Copy,
     Calendar,
     Clock,
     Cpu,
@@ -56,16 +54,6 @@ pub enum Icon {
     Phone,
     /// Oyenza: show a hidden sum.
     Eye,
-    /// Oyenza: money that arrived.
-    MoneyIn,
-    /// Oyenza: money that went out.
-    MoneyOut,
-    /// Oyenza: money moved between the person's own wallets.
-    Transfer,
-    /// Oyenza: a credit card bill.
-    Card,
-    /// Oyenza: the tab.
-    Wallet,
     /// Oyenza: signed out.
     Unlink,
     /// The header's Settings button.
@@ -88,10 +76,6 @@ pub enum Icon {
     Download,
     /// Record (Oyenza Studio Recorder): a dot that fits inside `Circle`.
     Record,
-    /// The Stocks tab: a line climbing to the right, its arrowhead at the end.
-    Stocks,
-    /// A magnifying glass: the Stocks page's search.
-    Search,
     /// The Record tab: a ring with the record dot inside.
     Recorder,
     /// The Record page's targets: a display, an app window, a dragged-out area.
@@ -103,8 +87,6 @@ pub enum Icon {
     Mic,
     /// The Notifications tab: a bell.
     Bell,
-    /// The Notes tab (Meeting notes): a page with a sound wave over two lines of text.
-    Notes,
     /// Another app's message in a notice: a speech bubble.
     Message,
     /// The AI tab: a spark with a small one beside it.
@@ -129,9 +111,6 @@ pub enum Icon {
     Zai,
     MiniMax,
     OpenRouter,
-    /// The Oyenza mark (Oyen's head): Oyenza Inference. Not the Oyenza tab,
-    /// which is `Wallet`.
-    Oyenza,
     /// A padlock: an IELTS level not open yet. (The IELTS tab and its answer
     /// button use `Mic`, the Record page's microphone.)
     Lock,
@@ -151,7 +130,6 @@ pub fn service(id: ProviderId) -> Icon {
         ProviderId::Zai => Icon::Zai,
         ProviderId::MiniMax => Icon::MiniMax,
         ProviderId::OpenRouter => Icon::OpenRouter,
-        ProviderId::Oyenza => Icon::Oyenza,
     }
 }
 
@@ -210,12 +188,6 @@ pub fn parts(icon: Icon) -> &'static [Part] {
         ],
         // Two shoe prints. Each outline starts at a corner of its flat bottom:
         // closing in the middle of a curve leaves a tiny segment whose join spikes.
-        Steps => p![
-            s("M5.2 12.5C4.8 11.1 4 9.7 4 7.6C4 4.8 5.5 2.5 7.5 2.5C9.5 2.5 11 4.8 11 7.6C11 9.7 10.2 11.1 9.8 12.5Z"),
-            s("M5.5 15H9.5V15.6A2 2 0 0 1 5.5 15.6Z"),
-            s("M14.2 17C13.8 15.6 13 14.2 13 12.1C13 9.3 14.5 7 16.5 7C18.5 7 20 9.3 20 12.1C20 14.2 19.2 15.6 18.8 17Z"),
-            s("M14.5 19.5H18.5V20.1A2 2 0 0 1 14.5 20.1Z"),
-        ],
         Tray => p![
             s("M4 13l2.4-7.2a1.6 1.6 0 0 1 1.5-1.1h8.2a1.6 1.6 0 0 1 1.5 1.1L20 13"),
             s("M4 13v5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5"),
@@ -238,10 +210,6 @@ pub fn parts(icon: Icon) -> &'static [Part] {
         Clipboard => p![
             s("M9 3.5h6a1 1 0 0 1 1 1V6a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1z"),
             s("M16 5h1.5A1.5 1.5 0 0 1 19 6.5v13a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 19.5v-13A1.5 1.5 0 0 1 6.5 5H8"),
-        ],
-        Copy => p![
-            s("M9.5 8.5h9A1.5 1.5 0 0 1 20 10v9.5a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 8 19.5V10a1.5 1.5 0 0 1 1.5-1.5z"),
-            s("M16 8.5v-3A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5V15a1.5 1.5 0 0 0 1.5 1.5H8"),
         ],
         Calendar => p![
             s("M5.5 5h13A1.5 1.5 0 0 1 20 6.5v12a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5v-12A1.5 1.5 0 0 1 5.5 5z"),
@@ -295,19 +263,6 @@ pub fn parts(icon: Icon) -> &'static [Part] {
         Open => p![s("M14 4h6v6"), s("M20 4l-9 9"), s("M18 14v4.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 4 18.5v-11A1.5 1.5 0 0 1 5.5 6H10")],
         Phone => p![s("M9 2.5h6A2.5 2.5 0 0 1 17.5 5v14a2.5 2.5 0 0 1-2.5 2.5H9A2.5 2.5 0 0 1 6.5 19V5A2.5 2.5 0 0 1 9 2.5z"), s("M11 18.5h2")],
         Eye => p![s("M2.5 12s3.5-6.5 9.5-6.5 9.5 6.5 9.5 6.5-3.5 6.5-9.5 6.5S2.5 12 2.5 12z"), s("M9.2 12a2.8 2.8 0 1 0 5.6 0a2.8 2.8 0 1 0-5.6 0")],
-        MoneyIn => p![s("M12 4v10.5"), s("M7.5 10.5L12 15l4.5-4.5"), s("M5 19.5h14")],
-        MoneyOut => p![s("M12 20V9.5"), s("M7.5 13.5L12 9l4.5 4.5"), s("M5 4.5h14")],
-        Transfer => p![s("M5 9h12.5"), s("M14.5 6l3 3-3 3"), s("M19 15H6.5"), s("M9.5 12l-3 3 3 3")],
-        Card => p![
-            s("M4.5 6.5h15A1.5 1.5 0 0 1 21 8v8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 16V8a1.5 1.5 0 0 1 1.5-1.5z"),
-            s("M3 10h18"),
-            s("M6.5 14h4"),
-        ],
-        Wallet => p![
-            s("M4 7.5h14.5A1.5 1.5 0 0 1 20 9v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18z"),
-            s("M4 7.5l10.5-3v3"),
-            s("M15.5 13.5h2"),
-        ],
         Unlink => p![
             s("M9.5 14.5l-1.7 1.7a3 3 0 0 1-4.2-4.2l2.2-2.2a3 3 0 0 1 4.2 0"),
             s("M14.5 9.5l1.7-1.7a3 3 0 0 1 4.2 4.2l-2.2 2.2a3 3 0 0 1-4.2 0"),
@@ -350,18 +305,7 @@ pub fn parts(icon: Icon) -> &'static [Part] {
         Camera => p![s("M4 7h9.5A1.5 1.5 0 0 1 15 8.5v7a1.5 1.5 0 0 1-1.5 1.5H4a1.5 1.5 0 0 1-1.5-1.5v-7A1.5 1.5 0 0 1 4 7z"), s("M15 10.5l5-3v9l-5-3")],
         Mic => p![s("M9 6a3 3 0 0 1 6 0v5a3 3 0 0 1-6 0z"), s("M5.5 11a6.5 6.5 0 0 0 13 0"), s("M12 17.5V21")],
         Download => p![s("M12 4v10.5"), s("M7.5 10L12 14.5 16.5 10"), s("M4.5 16v2.5A1.5 1.5 0 0 0 6 20h12a1.5 1.5 0 0 0 1.5-1.5V16")],
-        Stocks => p![s("M3.5 17.5l5.5-5.5 4 4 7.5-7.5"), s("M15 8.5h5.5V14")],
-        Search => p![s("M4.5 10.5a6 6 0 1 0 12 0a6 6 0 1 0-12 0"), s("M15 15l4.5 4.5")],
         Bell => p![s("M6 11a6 6 0 0 1 12 0v4.2l1.6 2.3H4.4L6 15.2z"), s("M10 20.3a2.2 2.2 0 0 0 4 0")],
-        Notes => p![
-            s("M6.5 3h11A1.5 1.5 0 0 1 19 4.5v15a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 19.5v-15A1.5 1.5 0 0 1 6.5 3z"),
-            s("M8.5 8v1.5"),
-            s("M10.75 6.5v4.5"),
-            s("M13 7.25v3"),
-            s("M15.25 8v1.5"),
-            s("M8.5 14.5h7"),
-            s("M8.5 17.5h4.5"),
-        ],
         Message => p![s("M5 5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-8l-4.5 3.5V17H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z")],
         // Four tips joined by sides bowed in toward the middle, drawn from a tip
         // so the closing join is a corner; the small spark is solid.
@@ -380,7 +324,6 @@ pub fn parts(icon: Icon) -> &'static [Part] {
         Zai => p![f(ZAI)],
         MiniMax => p![f(MINIMAX)],
         OpenRouter => p![f(OPENROUTER)],
-        Oyenza => p![f(OYENZA)],
         Lock => p![
             s("M6.5 11h11A1.5 1.5 0 0 1 19 12.5v6a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 18.5v-6A1.5 1.5 0 0 1 6.5 11z"),
             s("M8 11V8a4 4 0 0 1 8 0v3"),
@@ -392,9 +335,7 @@ pub fn parts(icon: Icon) -> &'static [Part] {
 // a card or a notice is about. They come from CodexBar's provider icons (MIT,
 // github.com/steipete/CodexBar 0.74.1, Sources/CodexBar/Resources/
 // ProviderIcon-*.svg): moved onto the grid, rounded to 0.1, holes turned round
-// for the non-zero rule and OpenRouter's strokes outlined. OYENZA is the
-// Oyenza mark (`poni_core::oyen::mark`) with its small cut's eyes; a test below
-// keeps it the same as the mark.
+// for the non-zero rule and OpenRouter's strokes outlined.
 const OPENAI: &str = "M20.4 10.2c.2-.6.2-1.3.2-2-.1-.7-.3-1.4-.7-2-1-1.8-3.2-2.8-5.3-2.3-.5-.7-1.3-1.1-2.1-1.4\
     c-.8-.3-1.7-.3-2.5-.1-.9.1-1.7.5-2.3 1.1-.7.6-1.1 1.3-1.4 2.1-.7.2-1.3.5-1.9.9-.5.4-1 .9-1.4 1.5\
     c-1 1.9-.8 4.2.7 5.8-.3.6-.3 1.3-.3 2 .1.7.3 1.4.7 2 1 1.8 3.2 2.8 5.3 2.3.4.5 1 .9 1.6 1.2.6.3 1.3.5 2 .4\
@@ -466,33 +407,24 @@ const OPENROUTER: &str = "M1.9 10.2c-.1 0 0 0 .1 0 .1 0 .2 0 .3-.1.3 0 .6-.1 1-.
     c.9 0 1.7-.1 2.6-.1v3.6c-.8 0-1.6.1-2.4.1-.8.1-1.6.1-2.4 0-.4 0-.9-.1-1.3-.1-.4-.1-.9-.2-1.3-.4\
     c-.4-.1-.9-.3-1.3-.5-.5-.3-.9-.6-1.4-.9-.4-.3-.9-.7-1.4-1-.3-.2-.6-.4-.8-.6-.4-.2-.9-.5-1.3-.7\
     c-.6-.4-1.2-.5-1.9-.7-.3-.1-.6-.2-.9-.2-.1-.1-.3-.1-.4-.1 0 0-.1 0 0 0Zm20.3 6.9L16 20.7V13.6Z";
-const OYENZA: &str = "M16.8 3.1q.5-.6 1.3-.4.8.2 1 .9L21 10.8q0 .1 0 .2.8 1.4.8 3.1 0 4.4-1.9 5.8\
-    Q18 21.3 12 21.3q-6 0-7.9-1.4-1.9-1.4-1.9-5.8 0-1.7.8-3.1 0-.1 0-.2l.9-3.3q.1-.2.3-.4L7.9 4.8q.5-.3.8.1\
-    l1.5 1.8q.1 0 .1.1 0 0 .1 0 .1.1.1.1 0 0 .1 0 .1 0 .1 0 .6-.1 1.3-.1.7 0 1.3.1 0 0 .1 0 .1 0 .1 0 0 0 .1-.1\
-    q.1 0 .1 0 0-.1.1-.1ZM8.3 4.7q0 .1.1.1 0 0 .1 0 0 .1 0 .1.1.1.1.1l.7 1.6q0 .1 0 .1 0 0 0 .1.1.1.1.1\
-    q0 0 0 .1 0 0 0 .1 0 0-.1 0 0 .1 0 .1 0 0 0 .1 0 .1 0 .1 0 .1-.1.1 0 .1 0 .1-.1 0-.1.1 0 .1-.1.1-.1.1-.1.1\
-    q0 0-.1 0 0 0 0 .1 0 0-.1 0-.1 0-.1 0-.1 0-.1.1 0 0-.1 0-.1 0-.1 0 0 0-.1 0 0 0-.1 0l-3-.6Q5 7.5 5 7.4\
-    q0 0-.1 0 0-.1-.1-.1 0 0 0-.1 0-.1 0-.1 0 0-.1-.1 0 0 .1 0 0-.1 0-.1 0 0 0-.1 0-.1.1-.1 0-.1.1-.1L7.9 4.8\
-    q0 0 .1-.1 0 0 .1 0 0 0 .1 0 0 0 .1 0ZM7.08 15.22a1.51 1.51 0 1 0 3.02 0a1.51 1.51 0 1 0-3.02 0ZM13.9 15.22\
-    a1.51 1.51 0 1 0 3.02 0a1.51 1.51 0 1 0-3.02 0Z";
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
     const ALL: &[Icon] = &[
-        Icon::Play, Icon::Pause, Icon::Next, Icon::Prev, Icon::Music, Icon::Lyrics, Icon::Timer, Icon::Coffee, Icon::Steps,
+        Icon::Play, Icon::Pause, Icon::Next, Icon::Prev, Icon::Music, Icon::Lyrics, Icon::Timer, Icon::Coffee, 
         Icon::Tray, Icon::ListChecks, Icon::Check, Icon::CheckCircle, Icon::Circle, Icon::Plus, Icon::Minus,
-        Icon::Close, Icon::Clipboard, Icon::Copy, Icon::Calendar, Icon::Clock, Icon::Cpu, Icon::Memory, Icon::Disk,
+        Icon::Close, Icon::Clipboard, Icon::Calendar, Icon::Clock, Icon::Cpu, Icon::Memory, Icon::Disk,
         Icon::Battery, Icon::Bolt, Icon::Bluetooth, Icon::Headphones, Icon::Volume, Icon::VolumeLow, Icon::VolumeMute,
         Icon::Pin, Icon::PinFill, Icon::Folder, Icon::File, Icon::Trash, Icon::Undo, Icon::Reset,
-        Icon::Sliders, Icon::Open, Icon::Phone, Icon::Eye, Icon::MoneyIn, Icon::MoneyOut, Icon::Transfer, Icon::Card, Icon::Wallet,
+        Icon::Sliders, Icon::Open, Icon::Phone, Icon::Eye, 
         Icon::Unlink, Icon::Gear,
         Icon::Gauge, Icon::App, Icon::Windows, Icon::Addons, Icon::Moon, Icon::Stop, Icon::Script, Icon::Record, Icon::Download,
-        Icon::Stocks, Icon::Search,
-        Icon::Recorder, Icon::Screen, Icon::AppWindow, Icon::Area, Icon::Camera, Icon::Mic, Icon::Bell, Icon::Notes, Icon::Message,
+        
+        Icon::Recorder, Icon::Screen, Icon::AppWindow, Icon::Area, Icon::Camera, Icon::Mic, Icon::Bell, Icon::Message,
         Icon::Ai, Icon::OpenAi, Icon::Claude, Icon::OpenCode, Icon::Gemini, Icon::Antigravity, Icon::Cursor, Icon::Copilot, Icon::Kimi, Icon::Zai,
-        Icon::MiniMax, Icon::OpenRouter, Icon::Oyenza,
+        Icon::MiniMax, Icon::OpenRouter,
         Icon::Lock,
     ];
 
@@ -523,43 +455,6 @@ mod tests {
         for (n, i) in marks.iter().enumerate() {
             assert!(!marks[..n].contains(i), "{i:?} twice");
             assert!(!parts(*i).is_empty());
-        }
-    }
-
-    /// OYENZA is `mark::HEAD` and `FOLD` scaled by 3/16 about the mark's centre
-    /// (x 0, y -11.04, where the Mac menu bar centres it) onto the grid's, with
-    /// the small cut's eyes as circles. If the mark changes, make it again so.
-    #[test]
-    fn oyenza_is_the_oyenza_mark() {
-        use poni_core::oyen::mark;
-        use poni_core::svgpath::{parse, Seg};
-        // Each figure's end points' bounds, on the grid.
-        let figures = |d: &str, on_grid: bool| -> Vec<[f32; 4]> {
-            let mut out: Vec<[f32; 4]> = Vec::new();
-            for seg in parse(d).unwrap() {
-                let (x, y) = match seg {
-                    Seg::MoveTo(x, y) => {
-                        out.push([f32::MAX, f32::MAX, f32::MIN, f32::MIN]);
-                        (x, y)
-                    }
-                    Seg::LineTo(x, y) | Seg::QuadTo(_, _, x, y) | Seg::CubicTo(_, _, _, _, x, y) | Seg::ArcTo(_, _, _, _, _, x, y) => (x, y),
-                    Seg::Close => continue,
-                };
-                let (x, y) = if on_grid { (x, y) } else { (12.0 + x * 0.1875, 12.0 + (y + 11.04) * 0.1875) };
-                let b = out.last_mut().unwrap();
-                *b = [b[0].min(x), b[1].min(y), b[2].max(x), b[3].max(y)];
-            }
-            out
-        };
-        let ours = figures(OYENZA, true);
-        let theirs: Vec<[f32; 4]> = [mark::HEAD, mark::FOLD, mark::EYES_SMALL].into_iter().flat_map(|d| figures(d, false)).collect();
-        assert_eq!(ours.len(), theirs.len());
-        for (n, (a, b)) in ours.iter().zip(&theirs).enumerate() {
-            // The eyes are circles here, whose end points sit on their middle line.
-            let mid = |b: &[f32; 4]| if n >= 2 { [(b[1] + b[3]) / 2.0; 2] } else { [b[1], b[3]] };
-            for (u, v) in [(a[0], b[0]), (a[2], b[2]), (mid(a)[0], mid(b)[0]), (mid(a)[1], mid(b)[1])] {
-                assert!((u - v).abs() < 0.06, "figure {n}: {u} where the mark has {v}");
-            }
         }
     }
 }

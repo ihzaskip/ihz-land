@@ -76,9 +76,6 @@ pub struct Addon {
     /// The release that holds this version of the files.
     pub tag: &'static str,
     pub files: &'static [AddonFile],
-    /// Part of Oyenza Studio Pro: it works only for an Oyenza account the
-    /// server says has Pro (`GET /island/pro`; `AppState::pro`).
-    pub pro: bool,
 }
 
 impl Addon {
@@ -128,7 +125,6 @@ pub const PRAYER_TIMES: Addon = Addon {
         AddonFile { name: "adzan.m4a", size: 878_695, sha256: "6b8097fa7dfa43bd61ce65894396518ea65dd9d940e56b251ffc4ae5e78c7420", url: None },
         AddonFile { name: "NOTICE.txt", size: 971, sha256: "166776256a3a8cb67e1ea42cd9b0f5ae17ddeca5bf7f35b72a0cd001a942ac2c", url: None },
     ],
-    pro: false,
 };
 
 /// The Japanese readings add-on's dictionary file (`romanize::JaDict`).
@@ -152,7 +148,6 @@ pub const JAPANESE_READINGS: Addon = Addon {
         AddonFile { name: JA_READINGS_FILE, size: 3_790_036, sha256: "4950e5e42a2a48ad50396304c6bfbb8f9a97b33947e147007943361d65d856c8", url: None },
         AddonFile { name: "NOTICE.txt", size: 4_786, sha256: "fb8cd0420c2a8b04404c17a1a2ada30e0e1bbd73e54ef548bb60ede42198e079", url: None },
     ],
-    pro: false,
 };
 
 /// Script reader: the Script page, a teleprompter under the webcam. Its
@@ -165,7 +160,6 @@ pub const SCRIPT_READER: Addon = Addon {
     mac_blurb: Some("A teleprompter under your webcam."),
     tag: "",
     files: &[],
-    pro: false,
 };
 
 /// System: the System page (the processor, graphics, memory, drives,
@@ -183,37 +177,6 @@ pub const SYSTEM: Addon = Addon {
     mac_blurb: None,
     tag: "",
     files: &[],
-    pro: false,
-};
-
-/// Health: the Health page, today's steps against the goal and the week,
-/// which Oyenza on the phone sends once signed in (Apple Health or Health
-/// Connect). A tab for everyone up to 0.2.8; an add-on, off, in the versions
-/// after it, like System. Its code is in the app, so there is nothing to
-/// download. Off, there is no Health tab and the Oyenza worker never asks
-/// for the steps.
-pub const HEALTH: Addon = Addon {
-    id: "health",
-    title: "Health",
-    blurb: "Your steps from Oyenza on your phone: today against your goal, and your week.",
-    mac_blurb: None,
-    tag: "",
-    files: &[],
-    pro: false,
-};
-
-/// Stocks: the Stocks page, the IHSG and up to ten IDX stocks with their
-/// day's line, from oyenza.trade (`poni_core::stocks`). Its code is in the
-/// app, so there is nothing to download. Off, there is no Stocks tab; on, the
-/// prices are asked for only while its page is on screen.
-pub const STOCKS: Addon = Addon {
-    id: "stocks",
-    title: "Stocks",
-    blurb: "The IHSG and up to 10 IDX stocks from oyenza.trade, 10 minutes behind IDX.",
-    mac_blurb: None,
-    tag: "",
-    files: &[],
-    pro: false,
 };
 
 /// Caffeine: the Caffeine page, drinks the person adds (an espresso drink by
@@ -228,7 +191,6 @@ pub const CAFFEINE: Addon = Addon {
     mac_blurb: None,
     tag: "",
     files: &[],
-    pro: false,
 };
 
 /// Screen recorder: the Record page and the recording pill, the face of
@@ -244,7 +206,6 @@ pub const SCREEN_RECORDER: Addon = Addon {
     mac_blurb: None,
     tag: "",
     files: &[],
-    pro: false,
 };
 
 /// Downloader: the Downloads page, which saves the video or sound of a link
@@ -253,9 +214,8 @@ pub const SCREEN_RECORDER: Addon = Addon {
 /// a video's picture and sound, is our own small build
 /// (`tools/build-ffmpeg-min.sh`, `addons/downloader/`). Not in the Microsoft
 /// Store build. Nothing runs at rest: the tools only run while a download
-/// does. Part of Studio Pro: its tools download, and it downloads, only for
-/// an account the server says has Pro. Each app has its own tools: this
-/// one, or [`DOWNLOADER_MAC`] on a Mac.
+/// does. Each app has its own tools: this one, or [`DOWNLOADER_MAC`] on a
+/// Mac.
 pub const DOWNLOADER: Addon = if cfg!(target_os = "macos") { DOWNLOADER_MAC } else { DOWNLOADER_WINDOWS };
 
 /// The Downloader on Windows: yt-dlp.exe and QuickJS-ng's Windows build from
@@ -283,7 +243,6 @@ pub const DOWNLOADER_WINDOWS: Addon = Addon {
         AddonFile { name: "ffmpeg.exe", size: 2_298_880, sha256: "8a42638bc2c9bed20670a3e89ccb7117345a941e245d8151aa60066cac0b3993", url: None },
         AddonFile { name: "NOTICE.txt", size: 32_624, sha256: "01fb0f44904d1f4789a5bc048fc1b2c29d1a36c25d91469632af03d2402331a0", url: None },
     ],
-    pro: true,
 };
 
 /// The Downloader on a Mac: yt-dlp's own Mac build (one file for Apple
@@ -322,11 +281,9 @@ pub fn is_downloader_tool(name: &str) -> bool {
 }
 
 /// AI usage: the AI tab (`studio_usage`), what's left of each AI plan on this
-/// computer and when it resets. A tab for everyone up to 0.2.25; part of
-/// Studio Pro in the versions after it. Its code is in the app, so there is
-/// nothing to download. Without Pro there is no AI tab or Settings section,
-/// and nothing is read. With Pro it's on until switched off
-/// ([`Settings::ai_usage_on`]).
+/// computer and when it resets. Its code is in the app, so there is nothing
+/// to download. It's on until switched off ([`Settings::ai_usage_on`]); off,
+/// there is no AI tab or Settings section, and nothing is read.
 pub const AI_USAGE: Addon = Addon {
     id: "ai",
     title: "AI usage",
@@ -334,16 +291,13 @@ pub const AI_USAGE: Addon = Addon {
     mac_blurb: None,
     tag: "",
     files: &[],
-    pro: true,
 };
 
-/// IELTS: Oyen's IELTS Speaking coach, the IELTS page (`crate::ielts`):
-/// Oyen asks the questions out loud, listens to the answers through the
-/// microphone and gives a band score, through the Oyenza account. Its code
-/// is in the app, so there is nothing to download. Off, there is no IELTS
-/// tab, and nothing of it runs: no microphone, no player, no calls. Part of
-/// Studio Pro: it switches on only for an account the server says has Pro,
-/// and its tab goes once the server says an account hasn't.
+/// IELTS: Pulo's IELTS Speaking coach, the IELTS page (`crate::ielts`):
+/// Pulo asks the questions out loud, listens to the answers through the
+/// microphone and gives a band score, through the signed-in account. Its
+/// code is in the app, so there is nothing to download. Off, there is no
+/// IELTS tab, and nothing of it runs: no microphone, no player, no calls.
 pub const IELTS: Addon = Addon {
     id: "ielts",
     title: "IELTS",
@@ -351,29 +305,10 @@ pub const IELTS: Addon = Addon {
     mac_blurb: None,
     tag: "",
     files: &[],
-    pro: true,
-};
-
-/// Meeting notes: the Notes page (`crate::notes`). One click and Oyen listens
-/// to the microphone and the computer's own sound (a call in Meet, Zoom,
-/// Teams; on a Mac through a Core Audio tap, macOS 14.2 and later), then the
-/// Oyenza account writes the notes. Its code is in the
-/// app, so there is nothing to download. Off, there is no Notes tab and
-/// nothing of it runs: no recording, no calls. Part of Studio Pro: the page
-/// records only for an account the server says has Pro, and the server
-/// writes notes only for one.
-pub const MEETING_NOTES: Addon = Addon {
-    id: "notes",
-    title: "Meeting notes",
-    blurb: "One click and Pulo listens to your meeting, Meet, Zoom or Teams, and writes the notes.",
-    mac_blurb: None,
-    tag: "",
-    files: &[],
-    pro: true,
 };
 
 /// Every add-on, in the order the Add-ons page lists them.
-pub const ALL: [&Addon; 12] = [&PRAYER_TIMES, &JAPANESE_READINGS, &SCRIPT_READER, &SYSTEM, &HEALTH, &STOCKS, &CAFFEINE, &SCREEN_RECORDER, &AI_USAGE, &MEETING_NOTES, &IELTS, &DOWNLOADER];
+pub const ALL: [&Addon; 9] = [&PRAYER_TIMES, &JAPANESE_READINGS, &SCRIPT_READER, &SYSTEM, &CAFFEINE, &SCREEN_RECORDER, &AI_USAGE, &IELTS, &DOWNLOADER];
 
 /// Whether Japanese readings switch themselves on for a song whose kanji went
 /// unread for want of them (`wants`): only while the person reads
@@ -482,27 +417,25 @@ mod tests {
     }
 
     #[test]
-    fn pro_is_ai_usage_meeting_notes_ielts_and_the_downloader() {
-        let pro: Vec<&str> = ALL.iter().filter(|a| a.pro).map(|a| a.id).collect();
-        assert_eq!(pro, vec!["ai", "notes", "ielts", "downloader"]);
-    }
-
-    #[test]
-    fn ai_usage_comes_with_pro_until_switched_off() {
+    fn ai_usage_is_on_until_switched_off() {
         assert!(!AI_USAGE.downloads() && AI_USAGE.size() == 0);
         assert_eq!(Status::Off.line(&AI_USAGE, false), "Track your AI usage.");
         let mut s = Settings::default();
-        assert!(!s.ai_usage_on(false), "no Pro: no AI tab");
-        assert!(s.ai_usage_on(true), "Pro is the switch");
+        assert!(s.ai_usage_on());
         s.set_addon(AI_USAGE.id, false);
-        assert!(!s.ai_usage_on(true), "switched off by hand: stays off");
-        s.set_addon(AI_USAGE.id, true);
-        assert!(s.ai_usage_on(true) && !s.ai_usage_on(false));
+        assert!(!s.ai_usage_on(), "switched off by hand: stays off");
+    }
+
+    #[test]
+    fn the_account_add_ons_are_gone() {
+        for id in ["health", "stocks", "notes"] {
+            assert_eq!(Addon::find(id), None);
+        }
     }
 
     #[test]
     fn built_in_add_ons_are_off_until_switched_on() {
-        for a in [&SYSTEM, &HEALTH, &STOCKS, &CAFFEINE, &IELTS, &MEETING_NOTES] {
+        for a in [&SYSTEM, &CAFFEINE, &IELTS] {
             assert!(!a.downloads() && a.size() == 0, "{}", a.id);
             assert_eq!(Addon::find(a.id), Some(a));
             assert_eq!(Status::Ready.line(a, false), "On");
@@ -604,9 +537,9 @@ mod tests {
 
     #[test]
     fn add_ons_are_listed_in_order_each_with_its_own_id() {
-        // The Add-ons page's order: the free ones, then Studio Pro's.
+        // The Add-ons page's order.
         let ids: Vec<&str> = ALL.iter().map(|a| a.id).collect();
-        assert_eq!(ids, ["sholat", "ja", "script", "system", "health", "stocks", "caffeine", "recorder", "ai", "notes", "ielts", "downloader"]);
+        assert_eq!(ids, ["sholat", "ja", "script", "system", "caffeine", "recorder", "ai", "ielts", "downloader"]);
         for (i, a) in ALL.iter().enumerate() {
             // The key in settings.json and the folder's name.
             assert!(!a.id.is_empty() && a.id.bytes().all(|b| b.is_ascii_lowercase()), "{}", a.id);
@@ -674,7 +607,6 @@ mod tests {
                 AddonFile { name: "tool.exe", size: 2_151_363, sha256: "2aeabf0092c3262d6b2609824418f7dd7ed1f1df939f73b2b15645230cac0d77", url: None },
                 AddonFile { name: "NOTICE.txt", size: 0, sha256: "", url: None },
             ],
-            pro: false,
         };
         let tool = SOON.files[0];
         assert!(tool.pinned() && !SOON.files[1].pinned() && !SOON.pinned());
@@ -742,7 +674,6 @@ mod tests {
             mac_blurb: None,
             tag: "addon-big-1",
             files: &[AddonFile { name: "big.exe", size: 30_100_000, sha256: "f5389d3698ecde4ef06f4e6b1ce0294fe9ac1396228c8990b8d3416d6d177a7d", url: None }],
-            pro: false,
         };
         assert_eq!(fmt_bytes(BIG.size()), "30 MB", "its size on the page while it's off");
         assert_eq!(Status::Downloading { done: 12_345_678, total: BIG.size() }.line(&BIG, false), "Downloading · 12 MB of 30 MB");

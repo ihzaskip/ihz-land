@@ -39,9 +39,7 @@ use crate::ui::{Hit, Input};
 use poni_core::addons::{Status as AddonStatus, JAPANESE_READINGS, PRAYER_TIMES};
 use poni_core::datetime::LocalDateTime;
 use poni_core::geom::{palette, Color, Point, Rect};
-use poni_core::health::{HealthDay, HealthSnapshot, HealthSource};
 use poni_core::lrc::parse_lrc;
-use poni_core::oyenza::{Activity, Bill, Day, Seen, Txn, WalletRef};
 use poni_core::pomodoro::{Phase, RunState};
 use poni_core::power::PowerReading;
 use poni_core::prayer::{PlaceList, Prayer, World};
@@ -109,7 +107,6 @@ enum Scene {
     ChargingHud,
     LowBatteryHud,
     Page(PageKind),
-    HealthSignedOut,
     ShelfItems,
     ShelfPhone,
     /// The System page on one module.
@@ -138,29 +135,7 @@ enum Scene {
     PrayerWorld,
     /// Bluetooth headphones connected (the headphone pop-up).
     HeadphonesHud,
-    /// Oyenza, signed in as a made-up account: its page (today's and
-    /// yesterday's transactions, bills due), the sign-in code, a money
-    /// notice with the sum held back, and Settings signed in.
-    Oyenza,
-    OyenzaCode,
-    /// The Oyenza tab signed out: what signing in brings, and Sign in.
-    OyenzaSignedOut,
-    OyenzaNotice,
     SettingsSignedIn,
-    /// The Today page signed in to Oyenza: the day from Google Calendar and
-    /// Gmail (`agenda::sample`), no app switched on, and a server without the
-    /// day (the stat tiles, as before). Signed out, `Page(Today)` above shows
-    /// the sign-in card.
-    TodayDay,
-    TodayNoApps,
-    TodayTiles,
-    /// Google Calendar switched off for Studio (Gmail on), and a date ten
-    /// days on clicked in the grid.
-    TodayOff,
-    TodayPicked,
-    /// The Stocks add-on on a made-up market (`pages::stocks::picture`):
-    /// the IHSG's day, Bank BCA's year, the search and edit mode.
-    Stocks(crate::pages::stocks::Picture),
     /// The Update sheet for a later version: while it downloads (or where
     /// this copy can't replace itself), with the DMG to download, and once
     /// its app is out of the DMG and checked, Install now and Install on
@@ -183,20 +158,13 @@ enum Scene {
     /// The IELTS add-on signed in: on the Mac, for now, the coach is on its
     /// way (its microphone and voice come with branch ielts-coach-mac).
     Ielts,
-    /// The Downloader, signed in with Studio Pro: the Downloads page with a
+    /// The Downloader: the Downloads page with a
     /// download coming in, one waiting, one done and one failed; the closed
     /// island while it downloads (around a notch, the ring and the percent
     /// sit in the ears); and the Add-ons tab with its row.
     Downloads,
     DownloadActivity,
     AddonsDownloader,
-    /// Meeting notes, signed in with Studio Pro: the page while Oyen listens
-    /// (42 s in), the closed island 12 minutes in (around a notch, Oyen in
-    /// one ear and the time in the other), and the Add-ons tab with every
-    /// Pro add-on listed.
-    NotesListening,
-    NotesActivity,
-    AddonsPro,
     /// The Caffeine add-on at 15:42 (`seed_caffeine`): the page on a day of
     /// three drinks, last call past, and on a day with none yet.
     Caffeine,
@@ -254,7 +222,7 @@ impl Rest {
     }
 }
 
-const SCENES: [Scene; 19] = [
+const SCENES: [Scene; 16] = [
     Scene::IdleClock,
     Scene::IdleEyes,
     Scene::Hover,
@@ -265,12 +233,9 @@ const SCENES: [Scene; 19] = [
     Scene::Page(PageKind::Focus),
     Scene::Page(PageKind::Today),
     Scene::Page(PageKind::Tasks),
-    Scene::Page(PageKind::Health),
-    Scene::HealthSignedOut,
     Scene::Page(PageKind::Media),
     Scene::Page(PageKind::Shelf),
     // In the Clipboard page's place (it left the app), so the numbers stay.
-    Scene::OyenzaSignedOut,
     // Slice 3: the pop-ups and the Shelf with real files.
     Scene::ChargingHud,
     Scene::LowBatteryHud,
@@ -323,20 +288,11 @@ fn ai_scenes() -> impl Iterator<Item = Scene> {
 const SETTINGS_SCENES: [Scene; 1] = [Scene::Page(PageKind::Settings)];
 /// The headphone pop-up, after Settings.
 const HEADPHONE_SCENES: [Scene; 1] = [Scene::HeadphonesHud];
-/// Oyenza sign-in, after the headphone pop-up.
-const OYENZA_SCENES: [Scene; 4] = [Scene::Oyenza, Scene::OyenzaCode, Scene::OyenzaNotice, Scene::SettingsSignedIn];
+/// Settings signed in, after the headphone pop-up.
+const OYENZA_SCENES: [Scene; 1] = [Scene::SettingsSignedIn];
 /// The System page's Power module on a Mac without a battery, after Oyenza.
 const POWER_SCENES: [Scene; 1] = [Scene::System(Module::Power)];
-/// The Today page signed in, after Power.
-const TODAY_SCENES: [Scene; 5] = [Scene::TodayDay, Scene::TodayNoApps, Scene::TodayTiles, Scene::TodayOff, Scene::TodayPicked];
-/// The Stocks page, after Prayer times abroad.
-const STOCKS_SCENES: [Scene; 4] = [
-    Scene::Stocks(crate::pages::stocks::Picture::Day),
-    Scene::Stocks(crate::pages::stocks::Picture::Year),
-    Scene::Stocks(crate::pages::stocks::Picture::Search),
-    Scene::Stocks(crate::pages::stocks::Picture::Edit),
-];
-/// The Update sheet, after Stocks (so every other picture keeps its number).
+/// The Update sheet, after Prayer times abroad.
 const UPDATE_SCENES: [Scene; 2] = [Scene::UpdateSheet, Scene::UpdateReady];
 /// The Record page and the recording on the closed island, every theme,
 /// after the Update sheet (so every other picture keeps its number).
@@ -345,8 +301,6 @@ const RECORD_SCENES: [Scene; 5] = [Scene::Record, Scene::RecordLive, Scene::Reco
 const IELTS_SCENES: [Scene; 1] = [Scene::Ielts];
 /// The Downloader, last of all (so every other picture keeps its number).
 const DOWNLOAD_SCENES: [Scene; 3] = [Scene::Downloads, Scene::DownloadActivity, Scene::AddonsDownloader];
-/// Meeting notes and every Pro add-on, after the Downloader.
-const NOTES_SCENES: [Scene; 3] = [Scene::NotesListening, Scene::NotesActivity, Scene::AddonsPro];
 /// The Diorama theme's island at night (21:30), in that theme only, after
 /// its resting pill's pictures: the open card on the Music and Settings
 /// pages, the music pill and a notice, in the night look (every other
@@ -355,7 +309,7 @@ const DIORAMA_NIGHT_SCENES: [Scene; 4] = [Scene::Page(PageKind::Media), Scene::P
 /// The night's hour and minute.
 const DIORAMA_NIGHT: (u8, u8) = (21, 30);
 
-/// The Caffeine page, after Meeting notes (so every other picture keeps its number).
+/// The Caffeine page, after the Downloader.
 const CAFFEINE_SCENES: [Scene; 3] = [Scene::Caffeine, Scene::CaffeineEmpty, Scene::CaffeineAdd];
 /// The Diorama theme's resting pill, in that theme only, after the peek
 /// strip's number (which a run without a notch leaves free), so every other
@@ -374,10 +328,10 @@ const DIORAMA_SCENES: [Scene; 9] = [
 
 /// What every theme draws after Pill's pictures, in its order: the Japanese
 /// song, the Add-ons tab, Prayer times, Settings, the headphone pop-up,
-/// Oyenza, Power, Today signed in, Prayer times abroad, Stocks, the Update
-/// sheet, Record, the AI tab, IELTS, the Downloader, Meeting notes and Caffeine.
+/// Settings signed in, Power, Prayer times abroad, the Update sheet, Record,
+/// the AI tab, IELTS, the Downloader and Caffeine.
 fn later_scenes() -> impl Iterator<Item = Scene> {
-    let later = SETTINGS_SCENES.into_iter().chain(HEADPHONE_SCENES).chain(OYENZA_SCENES).chain(POWER_SCENES).chain(TODAY_SCENES).chain(PRAYER_WORLD_SCENES).chain(STOCKS_SCENES).chain(UPDATE_SCENES).chain(RECORD_SCENES).chain(ai_scenes()).chain(IELTS_SCENES).chain(DOWNLOAD_SCENES).chain(NOTES_SCENES).chain(CAFFEINE_SCENES);
+    let later = SETTINGS_SCENES.into_iter().chain(HEADPHONE_SCENES).chain(OYENZA_SCENES).chain(POWER_SCENES).chain(PRAYER_WORLD_SCENES).chain(UPDATE_SCENES).chain(RECORD_SCENES).chain(ai_scenes()).chain(IELTS_SCENES).chain(DOWNLOAD_SCENES).chain(CAFFEINE_SCENES);
     JA_SCENES.into_iter().chain(ADDON_SCENES).chain(PRAYER_SCENES).chain(later)
 }
 
@@ -396,7 +350,6 @@ impl Scene {
             Scene::ShelfItems => "page-shelf-items".into(),
             Scene::ShelfPhone => "page-shelf-phone".into(),
             Scene::Page(p) => format!("page-{}", p.key()),
-            Scene::HealthSignedOut => "page-health-signed-out".into(),
             Scene::System(Module::Cpu) => "page-system".into(),
             Scene::System(m) => format!("page-system-{}", m.title().to_lowercase()),
             Scene::IdleStatus => "idle-status".into(),
@@ -415,18 +368,7 @@ impl Scene {
             Scene::PrayerPickerWorld => "page-prayer-picker-world".into(),
             Scene::PrayerWorld => "page-prayer-world".into(),
             Scene::HeadphonesHud => "headphones-hud".into(),
-            Scene::Oyenza => "page-oyenza".into(),
-            Scene::OyenzaSignedOut => "page-oyenza-signed-out".into(),
-            Scene::OyenzaCode => "page-oyenza-code".into(),
-            Scene::OyenzaNotice => "oyenza-notice".into(),
             Scene::SettingsSignedIn => "page-settings-signed-in".into(),
-            Scene::TodayDay => "page-today-day".into(),
-            Scene::TodayNoApps => "page-today-no-apps".into(),
-            Scene::TodayTiles => "page-today-tiles".into(),
-            Scene::TodayOff => "page-today-off".into(),
-            Scene::TodayPicked => "page-today-picked".into(),
-            Scene::Stocks(crate::pages::stocks::Picture::Day) => "page-stocks".into(),
-            Scene::Stocks(p) => format!("page-stocks-{}", format!("{p:?}").to_lowercase()),
             Scene::UpdateSheet => "page-update-sheet".into(),
             Scene::UpdateReady => "page-update-ready".into(),
             Scene::Record => "page-record".into(),
@@ -439,9 +381,6 @@ impl Scene {
             Scene::Downloads => "page-downloads".into(),
             Scene::DownloadActivity => "download-activity".into(),
             Scene::AddonsDownloader => "page-addons-downloader".into(),
-            Scene::NotesListening => "page-notes-listening".into(),
-            Scene::NotesActivity => "notes-activity".into(),
-            Scene::AddonsPro => "page-addons-pro".into(),
             Scene::Caffeine => "page-caffeine".into(),
             Scene::CaffeineEmpty => "page-caffeine-empty".into(),
             Scene::CaffeineAdd => "page-caffeine-add".into(),
@@ -932,12 +871,6 @@ fn seed_downloads(st: &mut AppState) {
     st.downloads = jobs;
 }
 
-/// The Health add-on switched on, as its row in Add-ons does.
-fn health_on(st: &mut AppState) {
-    st.settings.set_addon(poni_core::addons::HEALTH.id, true);
-    st.addons.insert(poni_core::addons::HEALTH.id, AddonStatus::Ready);
-}
-
 /// The Caffeine add-on switched on, its clock at 15:42 on the pictures' day,
 /// bedtime 23:00 and its other choices as they come. `drinks`: 07:30 a Kopi
 /// sachet, 10:15 an Es kopi susu (2 shots, Blend) and 12:00 an Americano (2
@@ -977,8 +910,6 @@ fn base_state(theme: Theme) -> AppState {
     st.volume = VolumeState { level: 0.64, muted: false, known: true };
     st.power = PowerState { has_battery: true, percent: 76, charging: false, on_ac: false, saver: false };
     st.stats = SysStats { valid: true, cpu: 0.23, mem_used: 9 << 30, mem_total: 16 << 30, disk_free: 212 << 30, disk_total: 476 << 30, uptime_s: 3 * 86_400 + 4 * 3600 };
-    // Oyen in the Oyenza tab long since arrived: at rest in every picture.
-    st.ui.oyen_tab = Some((crate::oyen::TabMove::Arrive, f64::NEG_INFINITY));
     seed(&mut st);
     st
 }
@@ -1009,80 +940,15 @@ fn fake_release() -> poni_core::update::Release {
     }
 }
 
-/// Oyenza for its scenes, all made up: today's and yesterday's
-/// transactions (today's newest just landed, so it glows), bills due
-/// tomorrow and later; or, signing in, the code to type in oyenza.app.
+/// The account for its scenes, all made up: signed in, or, signing in,
+/// the code to approve.
 pub(crate) fn fake_oyenza(st: &AppState, connecting: bool) -> OyenzaState {
-    let iso = |t: i64| {
-        let (y, m, d) = poni_core::datetime::civil_from_days(t.div_euclid(86_400));
-        let s = t.rem_euclid(86_400);
-        format!("{y:04}-{m:02}-{d:02}T{:02}:{:02}:{:02}Z", s / 3600, s % 3600 / 60, s % 60)
-    };
-    let midnight = st.unix - (st.local.hour as i64 * 3600 + st.local.minute as i64 * 60 + st.local.second as i64);
-    let at = |days_ago: i64, h: i64, m: i64| iso(midnight - days_ago * 86_400 + h * 3600 + m * 60);
-    let txn = |id: &str, kind: &str, title: &str, text: &str, wallet: (&str, &str), at: String, auto: bool| Txn {
-        id: id.into(),
-        kind: kind.into(),
-        title: title.into(),
-        amount: 1.0,
-        text: text.into(),
-        category: None,
-        wallet: Some(WalletRef { name: wallet.0.into(), color: wallet.1.into() }),
-        to_wallet: None,
-        at,
-        auto,
-    };
-    let (bca, gopay, ovo) = (("BCA", "#0060AF"), ("GoPay", "#00AED6"), ("OVO", "#4C3494"));
-    let day = |n: i64| st.local.add_days(n).day_key();
-    let today = Day {
-        date: day(0),
-        count: 3,
-        in_sum: 1_250_000.0,
-        out: 63_000.0,
-        in_text: "Rp 1.250.000".into(),
-        out_text: "Rp 63.000".into(),
-        rows: vec![
-            txn("t3", "income", "Gaji Oktober", "Rp 1.250.000", bca, at(0, 9, 38), true),
-            txn("t2", "expense", "Kopi susu", "Rp 25.000", gopay, at(0, 8, 51), false),
-            txn("t1", "expense", "Grab ke kantor", "Rp 38.000", ovo, at(0, 8, 2), false),
-        ],
-    };
-    let yesterday = Day {
-        date: day(-1),
-        count: 2,
-        in_sum: 0.0,
-        out: 390_000.0,
-        in_text: "Rp 0".into(),
-        out_text: "Rp 390.000".into(),
-        rows: vec![txn("y2", "expense", "Makan siang", "Rp 40.000", gopay, at(1, 12, 40), false), txn("y1", "expense", "Listrik PLN", "Rp 350.000", bca, at(1, 10, 2), true)],
-    };
-    let empty = |n: i64| Day { date: day(-n), count: 0, in_sum: 0.0, out: 0.0, in_text: "Rp 0".into(), out_text: "Rp 0".into(), rows: Vec::new() };
-    let days = vec![today, yesterday, empty(2), empty(3), empty(4), empty(5), empty(6)];
-    // Everything was on the page a while ago except today's newest, which just landed.
-    let mut seen = Seen::default();
-    let mut before = days.clone();
-    before[0].rows.remove(0);
-    seen.note(&before, st.now - 120.0);
-    seen.note(&days, st.now - 12.0);
     let link = if connecting {
-        OyenzaLink::Connecting { code: "KPJX-TMNQ".into(), url: "https://oyenza.app/connect?code=KPJX-TMNQ".into(), until: st.now + 581.0 }
+        OyenzaLink::Connecting { code: "KPJX-TMNQ".into(), url: format!("https://{}?code=KPJX-TMNQ", poni_core::oyenza::APPROVE_PAGE), until: st.now + 581.0 }
     } else {
         OyenzaLink::Connected { account: "a\u{2022}\u{2022}\u{2022}@example.com".into() }
     };
-    let bill = |kind: &str, name: &str, due: String, text: Option<&str>| Bill { kind: kind.into(), name: name.into(), due, amount: text.map(|_| 1.0), text: text.map(Into::into) };
-    OyenzaState {
-        link,
-        activity: Some(Activity { cursor: "42".into(), today: day(0), days }),
-        seen,
-        bills: vec![
-            bill("subscription", "Spotify", day(1), Some("Rp 54.990")),
-            bill("card", "Kartu Kredit BCA", day(1), None),
-            bill("subscription", "Netflix", day(5), Some("Rp 54.000")),
-        ],
-        bills_today: st.day_key(),
-        updated_unix: Some(st.unix - 8),
-        ..OyenzaState::default()
-    }
+    OyenzaState { link, ..OyenzaState::default() }
 }
 
 fn seed(st: &mut AppState) {
@@ -1094,17 +960,6 @@ fn seed(st: &mut AppState) {
     if let Some(id) = done {
         st.store.tasks.toggle(id, (unix - 1800).max(day_start + 60));
     }
-    let today = st.local;
-    let week = [5210u32, 9120, 7480, 3960, 10230, 6840, 8412];
-    let days = week
-        .iter()
-        .enumerate()
-        .map(|(i, &steps)| {
-            let last = i + 1 == week.len();
-            HealthDay { date: today.add_days(i as i64 + 1 - week.len() as i64).day_key(), steps, distance_m: last.then_some(6140), active_kcal: last.then_some(342) }
-        })
-        .collect();
-    st.health = Some(HealthSnapshot { goal: 8000, source: HealthSource::AppleHealth, updated_at: unix - 8 * 60, days });
     st.store.focus_sessions.insert(st.day_key(), 2);
 }
 
@@ -1254,10 +1109,6 @@ fn render_scene(gfx: &mut Gfx, scene: Scene, theme: Theme, notch: Option<Notch>,
             if p == PageKind::Media {
                 media(&mut st);
             }
-            // Health is an add-on, off by default: on for its own page.
-            if p == PageKind::Health {
-                health_on(&mut st);
-            }
             if p == PageKind::Focus {
                 st.pomodoro.phase = Phase::Focus;
                 st.pomodoro.run = RunState::Running { ends_at: NOW_MONO + 1104.5 };
@@ -1270,38 +1121,6 @@ fn render_scene(gfx: &mut Gfx, scene: Scene, theme: Theme, notch: Option<Notch>,
             st.page = PageKind::Settings;
             Mode::Expanded(PageKind::Settings)
         }
-        Scene::TodayDay | Scene::TodayNoApps | Scene::TodayTiles | Scene::TodayOff | Scene::TodayPicked => {
-            use poni_core::agenda::{day_num, sample, Answer, Source};
-            st.oyenza = fake_oyenza(&st, false);
-            let today = st.day_key();
-            let now_min = st.local.hour as i32 * 60 + st.local.minute as i32;
-            // The list starts at today, or at the date clicked ten days on.
-            st.ui.today_pick = (scene == Scene::TodayPicked).then(|| day_num(&today).unwrap_or(0) + 10);
-            st.ui.today_jump = st.ui.today_pick.is_some();
-            st.ui.today_drawn = st.now;
-            let o = &mut st.oyenza;
-            o.agenda_unix = Some(st.unix - 120);
-            match scene {
-                Scene::TodayDay | Scene::TodayPicked => {
-                    o.agenda = Some(sample(&today, now_min));
-                    o.agenda_state = crate::state::AgendaState::Ready;
-                }
-                Scene::TodayOff => {
-                    let mut a = sample(&today, now_min);
-                    a.apps.googlecalendar = Source::Off;
-                    a.events.clear();
-                    o.agenda = Some(a);
-                    o.agenda_state = crate::state::AgendaState::Ready;
-                }
-                Scene::TodayNoApps => {
-                    o.agenda = Some(Answer::none(&today));
-                    o.agenda_state = crate::state::AgendaState::Ready;
-                }
-                _ => o.agenda_state = crate::state::AgendaState::Unavailable,
-            }
-            st.page = PageKind::Today;
-            Mode::Expanded(PageKind::Today)
-        }
         Scene::Ielts => {
             // IELTS is an add-on, off by default: on for its own scene, signed in.
             st.settings.set_addon(poni_core::addons::IELTS.id, true);
@@ -1312,10 +1131,7 @@ fn render_scene(gfx: &mut Gfx, scene: Scene, theme: Theme, notch: Option<Notch>,
             Mode::Expanded(PageKind::Ielts)
         }
         Scene::Downloads | Scene::DownloadActivity | Scene::AddonsDownloader => {
-            // The Downloader is an add-on, off by default, for Studio Pro: on
-            // for its own scenes, signed in with Pro.
-            st.oyenza = fake_oyenza(&st, false);
-            st.oyenza.pro = Some(true);
+            // The Downloader is an add-on, off by default: on for its own scenes.
             st.downloader_offered = true;
             st.settings.set_addon(poni_core::addons::DOWNLOADER.id, true);
             st.addons.insert(poni_core::addons::DOWNLOADER.id, AddonStatus::Ready);
@@ -1334,43 +1150,6 @@ fn render_scene(gfx: &mut Gfx, scene: Scene, theme: Theme, notch: Option<Notch>,
                     Mode::Expanded(PageKind::Downloads)
                 }
             }
-        }
-        Scene::NotesListening | Scene::NotesActivity | Scene::AddonsPro => {
-            // Signed in with Studio Pro, every Pro add-on switched on.
-            st.oyenza = fake_oyenza(&st, false);
-            st.oyenza.pro = Some(true);
-            st.downloader_offered = true;
-            for a in [poni_core::addons::MEETING_NOTES, poni_core::addons::IELTS, poni_core::addons::DOWNLOADER] {
-                st.settings.set_addon(a.id, true);
-                st.addons.insert(a.id, AddonStatus::Ready);
-            }
-            let now = st.now;
-            match scene {
-                Scene::AddonsPro => {
-                    st.page = PageKind::Addons;
-                    Mode::Expanded(PageKind::Addons)
-                }
-                _ => {
-                    let secs = if scene == Scene::NotesListening { 42.5 } else { 754.5 };
-                    st.notes.started(now - secs, true, true);
-                    (st.notes.mic, st.notes.pc) = (0.32, 0.55);
-                    if scene == Scene::NotesActivity {
-                        Mode::Activity(activities::Activity::Notes)
-                    } else {
-                        st.page = PageKind::Notes;
-                        Mode::Expanded(PageKind::Notes)
-                    }
-                }
-            }
-        }
-        Scene::Stocks(shows) => {
-            // Stocks is an add-on, off by default: on for its own scenes.
-            st.settings.set_addon(poni_core::addons::STOCKS.id, true);
-            st.addons.insert(poni_core::addons::STOCKS.id, AddonStatus::Ready);
-            let now = st.now;
-            crate::pages::stocks::picture(&mut st, shows, now);
-            st.page = PageKind::Stocks;
-            Mode::Expanded(PageKind::Stocks)
         }
         Scene::Caffeine | Scene::CaffeineEmpty => {
             seed_caffeine(&mut st, scene == Scene::Caffeine);
@@ -1408,39 +1187,15 @@ fn render_scene(gfx: &mut Gfx, scene: Scene, theme: Theme, notch: Option<Notch>,
             }
         }
         Scene::Ai(shows) => {
-            // AI usage is part of Studio Pro: signed in with it.
-            st.oyenza = fake_oyenza(&st, false);
-            st.oyenza.pro = Some(true);
             let now = st.now;
             crate::pages::usage::picture(&mut st, shows, now);
             st.page = PageKind::Ai;
             Mode::Expanded(PageKind::Ai)
         }
-        Scene::Oyenza | Scene::OyenzaCode => {
-            st.oyenza = fake_oyenza(&st, scene == Scene::OyenzaCode);
-            st.page = PageKind::Oyenza;
-            Mode::Expanded(PageKind::Oyenza)
-        }
-        Scene::OyenzaSignedOut => {
-            st.page = PageKind::Oyenza;
-            Mode::Expanded(PageKind::Oyenza)
-        }
-        Scene::OyenzaNotice => {
-            st.oyenza = fake_oyenza(&st, false);
-            st.notify(Icon::MoneyIn, palette::GREEN, "Money in \u{b7} BCA", "Amount and sender hidden", 30.0, Some(NoticeAction::OpenPage(PageKind::Oyenza)));
-            st.set_notice_inline(InlineAction::ShowAmount);
-            Mode::Notice
-        }
         Scene::SettingsSignedIn => {
             st.oyenza = fake_oyenza(&st, false);
             st.page = PageKind::Settings;
             Mode::Expanded(PageKind::Settings)
-        }
-        Scene::HealthSignedOut => {
-            health_on(&mut st);
-            st.health = None;
-            st.page = PageKind::Health;
-            Mode::Expanded(PageKind::Health)
         }
         Scene::IdleStatus => {
             st.settings.idle_style = IdleStyle::Status;

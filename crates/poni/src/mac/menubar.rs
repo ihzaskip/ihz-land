@@ -38,7 +38,6 @@ pub enum MenuCmd {
     AppleMusicForget,
     OyenzaSignIn,
     OyenzaCancel,
-    ToggleOyenzaAmounts,
     OyenzaOpen,
     OyenzaDisconnect,
     OpenSettings,
@@ -98,7 +97,7 @@ pub fn menu_items(s: &Settings, pinned: bool, login: Login, recorder: bool, oyen
         item("Synced lyrics", MenuCmd::ToggleLyrics, s.lyrics),
         item("Lyrics pronunciation (romaji, pinyin, Korean)", MenuCmd::TogglePronunciation, s.lyrics_pronunciation),
         apple_music_menu(),
-        oyenza_menu(s, oyenza),
+        oyenza_menu(oyenza),
         item("Sounds", MenuCmd::ToggleSounds, s.sounds),
         MenuItem::Sub { label: "In full-screen apps".into(), items: vec![fullscreen("Hide", true), fullscreen("Stay on top", false)] },
         match login {
@@ -139,21 +138,21 @@ pub fn menu_items(s: &Settings, pinned: bool, login: Login, recorder: bool, oyen
     items
 }
 
-/// Oyenza, optional: sign in with a code from oyenza.app, then what the
-/// island may show, and signing out (as in the Windows tray).
-fn oyenza_menu(s: &Settings, link: &OyenzaLink) -> MenuItem {
+/// The account, optional: sign in with a code approved on the web, and
+/// signing out (as in the Windows tray).
+fn oyenza_menu(link: &OyenzaLink) -> MenuItem {
+    let name = poni_core::oyenza::NAME;
     let items = match link {
-        OyenzaLink::Off => vec![item("Sign in to Oyenza…", MenuCmd::OyenzaSignIn, false)],
+        OyenzaLink::Off => vec![item(&format!("Sign in to {name}…"), MenuCmd::OyenzaSignIn, false)],
         OyenzaLink::Connecting { .. } => vec![item("Cancel sign-in", MenuCmd::OyenzaCancel, false)],
         OyenzaLink::Connected { account } => vec![
             MenuItem::Info { label: format!("Connected as {account}") },
-            item("Show amounts on the island", MenuCmd::ToggleOyenzaAmounts, s.oyenza_show_amounts),
-            item("Open oyenza.app", MenuCmd::OyenzaOpen, false),
+            item(&format!("Open {name}"), MenuCmd::OyenzaOpen, false),
             MenuItem::Separator,
             item("Disconnect", MenuCmd::OyenzaDisconnect, false),
         ],
     };
-    MenuItem::Sub { label: "Oyenza".into(), items }
+    MenuItem::Sub { label: name.into(), items }
 }
 
 /// Opt-in lyrics from Apple Music with the person's own token.

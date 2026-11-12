@@ -1,7 +1,7 @@
 //! IELTS page, the IELTS add-on's (off until switched on): Oyen as a
 //! GoPrep-style IELTS Speaking examiner (`poni_core::ielts`).
 //!
-//! - Signed out: the Oyenza sign-in card, saying what the coach does.
+//! - Signed out: the sign-in card, saying what the coach does.
 //! - Home: the five levels (open ones can be picked, each with its target
 //!   band and the best so far), today's sessions, how Oyen talks (Sopan,
 //!   Gaul, Ngegas) and Mulai.
@@ -32,8 +32,8 @@ use poni_core::ielts::{self, MicIssue, Phase, Problem, Spice};
 /// Every state is this tall (under System's 256, the island's tallest), so
 /// the island never grows, or jumps between them.
 const HEIGHT: f32 = 248.0;
-/// Signed out: the Oyenza sign-in card's height.
-const SIGNED_OUT_H: f32 = 156.0;
+/// Signed out: the sign-in card's height.
+const SIGNED_OUT_H: f32 = super::account::HEIGHT;
 /// Oyen's column, and the gap to the right one.
 const LEFT_W: f32 = 168.0;
 const COL_GAP: f32 = 18.0;
@@ -64,7 +64,10 @@ pub fn height(st: &AppState) -> f32 {
 /// The session's next deadline: a line's reading time, Part 2's minute,
 /// the recording's limit (the app ticks the coach then).
 pub fn next_wake(st: &AppState) -> Option<f64> {
-    st.ielts.deadline()
+    match (st.ielts.deadline(), super::account::next_wake(st)) {
+        (Some(a), Some(b)) => Some(a.min(b)),
+        (a, b) => a.or(b),
+    }
 }
 
 fn signed_in(st: &AppState) -> bool {
@@ -74,7 +77,7 @@ fn signed_in(st: &AppState) -> bool {
 pub fn draw(ui: &mut Ui, st: &mut AppState, area: Rect) {
     if !signed_in(st) {
         let card = Rect::new(area.x, area.y, area.w, SIGNED_OUT_H);
-        super::oyenza::sign_in_card(ui, st, card, SIGN_IN_TITLE, SIGN_IN_BODY, "ielts.sign-in");
+        super::account::sign_in_card(ui, st, card, SIGN_IN_TITLE, SIGN_IN_BODY, "ielts.sign-in");
         return;
     }
     // Fixed layout height: the island's spring may still be opening.

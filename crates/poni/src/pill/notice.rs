@@ -216,7 +216,7 @@ mod tests {
 
     fn money(subtitle: &str, reveal: Option<&str>) -> Notice {
         Notice {
-            icon: Icon::MoneyIn,
+            icon: Icon::Message,
             color: palette::GREEN,
             title: "Money in \u{b7} BCA".into(),
             title_dim: String::new(),

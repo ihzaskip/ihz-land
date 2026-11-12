@@ -1,9 +1,8 @@
 //! Add-ons page, the "+" at the end of the tab row: features only the people
 //! who switch them on get (`poni_core::addons`). Most download then; Script
-//! reader, System, Health, Stocks, IELTS and Meeting notes are already in
-//! the app and only show their pages (System's readings, Health's steps and
-//! Stocks' prices also run only while they are on; IELTS only while a
-//! session runs, Meeting notes only while it records).
+//! reader, System, Caffeine, AI usage and IELTS are already in the app and
+//! only show their pages (System's readings also run only while it is on;
+//! IELTS only while a session runs).
 //!
 //! One row per add-on: its icon, its name, what it does (or where its
 //! download stands, with a bar while it comes in), its size while it is off,
@@ -16,17 +15,12 @@
 //! Both apps list every add-on ([`OFFERED`]) but Screen recorder, which shows
 //! once Oyenza Studio Recorder is installed ([`rows`]). From seven rows each
 //! is one line: the name, then the line after it.
-//!
-//! A Studio Pro add-on's row says Pro where its size was, for everyone, so
-//! people know what Pro brings before they buy it. Without Pro its switch
-//! gives way to a +, and a click opens what it does ([`locked`], [`draw_about`]).
-//! The Downloader's tools come only with Pro ([`needs_pro`]).
 
 use crate::commands::Command;
-use crate::gfx::{TextStyle, Weight};
+use crate::gfx::TextStyle;
 use crate::icons::Icon;
 use crate::state::AppState;
-use crate::ui::{wid, wid_n, PillStyle, Ui, PILL_GAP, PILL_SMALL};
+use crate::ui::{wid_n, Ui};
 use poni_core::addons::{self, Addon, Status};
 use poni_core::geom::{palette, Color, Point, Rect};
 use poni_core::phonedrop::fmt_bytes;
@@ -52,8 +46,6 @@ const TWO_LINES: f32 = 33.0;
 const BADGE_ONE_LINE: f32 = 24.0;
 /// Between the name and the line after it, on a one-line row.
 const LINE_GAP: f32 = 10.0;
-/// Where a Pro add-on's page sends people: Pro's features and prices.
-const PRICING_URL: &str = "https://studio.oyenza.com/#pricing";
 
 /// The add-ons this app has, in the page's order: all of them, on Windows
 /// and on the Mac (whose Prayer times use macOS's location and sounds).
@@ -79,34 +71,13 @@ fn rows(st: &AppState) -> Vec<&'static Addon> {
         .collect()
 }
 
-/// The Pro add-on whose tab goes when Pro does, however it was left
-/// (`AppState::downloader_on`): the Downloader, whose tools download only
-/// for Pro.
-fn needs_pro(a: &Addon) -> bool {
-    a.id == addons::DOWNLOADER.id
-}
-
-/// A Pro add-on this account can't switch on: its row opens what it does
-/// ([`draw_about`]). One left on from before Pro ended still switches off.
-fn locked(st: &AppState, a: &Addon) -> bool {
-    a.pro && st.studio_pro() != Some(true) && !status(st, a).is_on()
-}
-
-/// AI usage or the Downloader is switched on: the island asks the server
-/// about Pro as soon as it's signed in (at start, or just connected), so
-/// their tabs don't wait for this page to open.
-pub fn pro_wanted(st: &AppState) -> bool {
-    st.settings.ai_usage_on(true) || (st.downloader_offered && st.settings.addon_on(addons::DOWNLOADER.id))
-}
-
 fn row_h(n: usize) -> f32 {
     ((MAX_H - ROWS_Y) / n.max(1) as f32).floor().min(ROW_H)
 }
 
 /// Where `a` stands: Screen recorder follows the recorder's install
-/// (`Settings::recorder_on`); AI usage comes with Pro until switched off
-/// (`Settings::ai_usage_on`); the Downloader is off without Pro, even
-/// switched on before; the others, their own switch and download.
+/// (`Settings::recorder_on`); AI usage is on until switched off
+/// (`Settings::ai_usage_on`); the others, their own switch and download.
 fn status(st: &AppState, a: &Addon) -> Status {
     if a.id == addons::SCREEN_RECORDER.id || a.id == addons::AI_USAGE.id {
         let on = if a.id == addons::AI_USAGE.id { st.ai_usage_on() } else { st.record_on() };
@@ -115,8 +86,6 @@ fn status(st: &AppState, a: &Addon) -> Status {
         } else {
             Status::Off
         }
-    } else if needs_pro(a) && st.studio_pro() != Some(true) {
-        Status::Off
     } else {
         st.addon(a.id)
     }
@@ -129,68 +98,17 @@ fn icon(a: &Addon) -> Icon {
         "ja" => Icon::Lyrics,
         "script" => Icon::Script,
         "system" => Icon::Gauge,
-        "health" => Icon::Steps,
-        "stocks" => Icon::Stocks,
         "caffeine" => Icon::Coffee,
         "notifications" => Icon::Bell,
         "recorder" => Icon::Recorder,
         "downloader" => Icon::Download,
         "ielts" => Icon::Mic,
-        "notes" => Icon::Notes,
         "ai" => Icon::Ai,
         _ => Icon::Addons,
     }
 }
 
-/// What a Pro add-on does, on the page its row opens.
-fn about(a: &Addon) -> &'static str {
-    match a.id {
-        "ai" => "Each AI service on this computer gets a card: your plan, each limit with when it resets, and what's left. Codex, Claude Code, Cursor, Gemini CLI, GitHub Copilot and more. Sign-ins stay here, and nothing about your usage goes to Oyenza.",
-        "notes" => "One click and Pulo listens to your call in Meet, Zoom, Teams or WhatsApp, with no bot joining, then writes up the summary, the decisions and who does what, with the whole transcript. The recording goes to Oyenza's server and is deleted once your notes are saved.",
-        "ielts" => "Pulo asks IELTS Speaking questions out loud, listens to your answers and gives you a band. Your answers go to Oyenza's server to be scored and are deleted once that's done. IELTS® is a trademark of the IELTS partners. Not official IELTS material, not endorsed by them.",
-        "downloader" => "Paste a link, pick Video or Sound, and watch it come in to Downloads and the Shelf. Only what you have the right to keep.",
-        _ => a.blurb,
-    }
-}
-
-/// A Pro add-on's page: its name, what it does and where to see Pro.
-fn draw_about(ui: &mut Ui, st: &mut AppState, area: Rect, a: &Addon) {
-    let accent = st.accent;
-    let c = Point::new(area.x + BADGE / 2.0, area.y + 4.0 + BADGE / 2.0);
-    ui.c.fill_circle(c, BADGE / 2.0, accent.with_alpha(0.18));
-    ui.c.icon(icon(a), Rect::from_center(c, 18.0, 18.0), accent);
-    let x = area.x + TEXT_X;
-    let w = (area.w - TEXT_X).clamp(0.0, 460.0);
-    let title_w = ui.c.measure(a.title, &TextStyle::headline(), w.max(1.0)).0.ceil();
-    ui.c.text(a.title, Rect::new(x, area.y + 3.0, title_w + 1.0, 20.0), &TextStyle::headline());
-    let tag = Rect::new(x + title_w + 8.0, area.y + 4.0, 36.0, 18.0);
-    ui.c.fill_rrect(tag, 9.0, crate::oyen::ORANGE.with_alpha(0.2));
-    ui.c.text("PRO", tag, &TextStyle::caption().weight(Weight::Bold).center().color(crate::oyen::ORANGE));
-    ui.c.text(a.blurb, Rect::new(x, area.y + 23.0, w, 17.0), &TextStyle::footnote().color(palette::TEXT_DIM));
-    let para = TextStyle::footnote().wrap().top();
-    let body = about(a);
-    let h = ui.c.measure(body, &para, w).1;
-    ui.c.text(body, Rect::new(x, area.y + 50.0, w, h + 1.0), &para);
-    let y = area.y + 50.0 + h + 8.0;
-    ui.c.text("Studio Pro is in early access and can't be bought yet.", Rect::new(x, y, w, 17.0), &TextStyle::footnote().color(palette::TEXT_DIM));
-    let y = y + 25.0;
-    let see = "See Studio Pro";
-    let see_w = ui.pill_width(see, false, true);
-    if ui.pill(wid("addons.about.see"), Rect::new(x, y, see_w, PILL_SMALL), see, None, PillStyle::Primary(accent)).clicked {
-        st.cmd(Command::OpenUrl(PRICING_URL.to_string()));
-    }
-    let back = "Back";
-    let back_w = ui.pill_width(back, false, true);
-    if ui.pill(wid("addons.about.back"), Rect::new(x + see_w + PILL_GAP, y, back_w, PILL_SMALL), back, None, PillStyle::Neutral).clicked {
-        st.ui.addon_about = None;
-    }
-}
-
 pub fn draw(ui: &mut Ui, st: &mut AppState, area: Rect) {
-    if let Some(a) = st.ui.addon_about.and_then(Addon::find).filter(|a| locked(st, a)) {
-        draw_about(ui, st, area, a);
-        return;
-    }
     let intro = "Each one stays off until you switch it on, and switching off deletes any download.";
     ui.c.text(intro, Rect::new(area.x, area.y, area.w, INTRO_H), &TextStyle::footnote().color(palette::TEXT_DIM));
     // The last row's hover wash meets the Pill card's rounded corners.
@@ -201,9 +119,7 @@ pub fn draw(ui: &mut Ui, st: &mut AppState, area: Rect) {
         let row = Rect::new(area.x, area.y + ROWS_Y + i as f32 * h, area.w, h);
         if addon_row(ui, st, row, i, a, card) {
             let on = status(st, a).is_on();
-            if locked(st, a) {
-                st.ui.addon_about = Some(a.id);
-            } else if !on && !a.pinned() {
+            if !on && !a.pinned() {
                 // This build can't get its files: it stays off, and its line says why.
                 st.addons.insert(a.id, Status::Unpinned);
             } else {
@@ -239,20 +155,14 @@ fn addon_row(ui: &mut Ui, st: &AppState, r: Rect, i: usize, a: &Addon, card: Opt
     let glyph = if one_line { 14.0f32.min(r.h - 8.0) } else { 18.0 };
     ui.c.icon(icon(a), Rect::from_center(Point::new(r.x + BADGE / 2.0, cy), glyph, glyph), accent);
 
-    // A switch, or the + of a Pro add-on that opens what it does.
-    let edge = if locked(st, a) {
-        ui.c.icon(Icon::Plus, Rect::from_center(Point::new(r.right() - 8.0, cy), 14.0, 14.0), palette::TEXT_DIM);
-        r.right() - 16.0
-    } else {
-        let sw = Rect::new(r.right() - SWITCH_W, cy - SWITCH_H / 2.0, SWITCH_W, SWITCH_H);
-        crate::pages::settings::draw_switch(ui.c, sw, status.is_on(), accent);
-        sw.x
-    };
+    let sw = Rect::new(r.right() - SWITCH_W, cy - SWITCH_H / 2.0, SWITCH_W, SWITCH_H);
+    crate::pages::settings::draw_switch(ui.c, sw, status.is_on(), accent);
+    let edge = sw.x;
     // The size, while there is a choice to make.
     let mut text_right = edge - 16.0;
     if status == Status::Off {
-        let size = if a.pro { "Pro".to_string() } else if a.downloads() { fmt_bytes(a.size()) } else { "Built in".to_string() };
-        let style = if a.pro { TextStyle::footnote().weight(Weight::Semibold).color(crate::oyen::ORANGE).right() } else { TextStyle::footnote().color(palette::TEXT_DIM).right() };
+        let size = if a.downloads() { fmt_bytes(a.size()) } else { "Built in".to_string() };
+        let style = TextStyle::footnote().color(palette::TEXT_DIM).right();
         let w = ui.c.measure(&size, &style, 200.0).0.ceil();
         ui.c.text(&size, Rect::new(edge - 10.0 - w, r.y, w, r.h), &style);
         text_right = edge - 10.0 - w - 16.0;
@@ -296,19 +206,15 @@ mod tests {
     use super::*;
     use poni_core::settings::Settings;
     use poni_core::store::Store;
-    use crate::state::OyenzaLink;
 
     #[test]
     fn every_row_offered_fits_the_page() {
         let mut st = AppState::new(Settings::default(), Store::default());
         let without = rows(&st).len();
-        // Oyenza Studio Recorder installed, and signed in with Pro where the
-        // Downloader is offered: the recorder and the Downloader join.
+        // The recorder installed, and the Downloader offered: both join.
         st.recorder = true;
         st.store.recorder_island = true;
         st.downloader_offered = true;
-        st.oyenza.link = OyenzaLink::Connected { account: "a•••@example.com".into() };
-        st.oyenza.pro = Some(true);
         assert_eq!(rows(&st).len(), without + 2);
         assert!(height(&st) <= MAX_H, "the window never grows for this page");
         let h = row_h(rows(&st).len());
@@ -317,62 +223,23 @@ mod tests {
     }
 
     #[test]
-    fn pro_add_ons_show_for_everyone_and_say_what_they_do_without_pro() {
-        use poni_core::addons::{AI_USAGE, DOWNLOADER, IELTS, MEETING_NOTES, STOCKS};
-        let connected = || OyenzaLink::Connected { account: "a\u{2022}\u{2022}\u{2022}@example.com".into() };
+    fn every_add_on_switches_without_an_account() {
+        use poni_core::addons::{AI_USAGE, DOWNLOADER, IELTS};
         let listed = |st: &AppState, id: &str| rows(st).iter().any(|a| a.id == id);
         let mut st = AppState::new(Settings::default(), Store::default());
         st.downloader_offered = true;
-        // The Downloader switched on before, its tools in place.
-        st.settings.set_addon(DOWNLOADER.id, true);
-        st.addons.insert(DOWNLOADER.id, Status::Ready);
-        for (link, pro) in [(OyenzaLink::Off, None), (connected(), None), (connected(), Some(false))] {
-            st.oyenza.link = link;
-            st.oyenza.pro = pro;
-            for a in [&AI_USAGE, &MEETING_NOTES, &IELTS, &DOWNLOADER] {
-                assert!(listed(&st, a.id), "{} listed without Pro ({pro:?})", a.id);
-                assert_eq!(status(&st, a), Status::Off, "{} stays off", a.id);
-                assert!(locked(&st, a), "{}: its row opens what it does ({pro:?})", a.id);
-                assert_ne!(about(a), a.blurb, "{} says more than its row", a.id);
-            }
-            assert!(!st.ai_usage_on());
+        for a in [&AI_USAGE, &IELTS, &DOWNLOADER] {
+            assert!(listed(&st, a.id), "{}", a.id);
         }
-        // With Pro they switch: AI usage is on already, until switched off.
-        st.oyenza.link = connected();
-        st.oyenza.pro = Some(true);
-        assert_eq!(status(&st, &DOWNLOADER), Status::Ready);
+        // AI usage is on until switched off; the others by their switch.
         assert_eq!(status(&st, &AI_USAGE), Status::Ready);
-        assert!(st.ai_usage_on() && !locked(&st, &AI_USAGE) && !locked(&st, &IELTS));
         st.settings.set_addon(AI_USAGE.id, false);
         assert_eq!(status(&st, &AI_USAGE), Status::Off);
-        assert!(!st.ai_usage_on() && !locked(&st, &AI_USAGE));
-        // One left on when Pro ended still switches off.
-        st.settings.set_addon(IELTS.id, true);
-        st.addons.insert(IELTS.id, Status::Ready);
-        st.oyenza.pro = Some(false);
-        assert!(!locked(&st, &IELTS));
-        // Not where it isn't offered (the Store build), Pro or not.
+        st.settings.set_addon(DOWNLOADER.id, true);
+        st.addons.insert(DOWNLOADER.id, Status::Ready);
+        assert_eq!(status(&st, &DOWNLOADER), Status::Ready);
+        // Not where it isn't offered (the Store build).
         st.downloader_offered = false;
         assert!(!listed(&st, DOWNLOADER.id));
-        // A free add-on: listed and on without Pro.
-        st.oyenza = Default::default();
-        st.settings.set_addon(STOCKS.id, true);
-        st.addons.insert(STOCKS.id, Status::Ready);
-        assert_eq!(status(&st, &STOCKS), Status::Ready);
-        assert!(listed(&st, STOCKS.id) && !locked(&st, &STOCKS));
-    }
-
-    #[test]
-    fn the_island_asks_about_pro_at_sign_in_for_what_needs_it() {
-        use poni_core::addons::{AI_USAGE, DOWNLOADER};
-        let mut st = AppState::new(Settings::default(), Store::default());
-        assert!(pro_wanted(&st), "AI usage's tab waits on it");
-        st.settings.set_addon(AI_USAGE.id, false);
-        assert!(!pro_wanted(&st), "nothing to ask about at sign-in");
-        st.downloader_offered = true;
-        st.settings.set_addon(DOWNLOADER.id, true);
-        assert!(pro_wanted(&st));
-        st.downloader_offered = false;
-        assert!(!pro_wanted(&st), "not offered here");
     }
 }
