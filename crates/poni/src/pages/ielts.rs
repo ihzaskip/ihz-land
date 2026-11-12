@@ -50,8 +50,8 @@ const DISCLAIMER: &str = "IELTS\u{ae} is a trademark of the IELTS partners. Not 
 /// Microphone, or System Settings › Privacy & Security › Microphone.
 const MIC_SETTINGS: &str =
     if cfg!(target_os = "macos") { "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone" } else { "ms-settings:privacy-microphone" };
-const SIGN_IN_TITLE: &str = "Latihan IELTS Speaking bareng Oyen";
-const SIGN_IN_BODY: &str = "Oyen jadi examiner IELTS kamu: nanya Part 1 sampai 3, dengerin jawabanmu, kasih band score, terus nge-roast. Masuk ke Oyenza dulu buat mulai.";
+const SIGN_IN_TITLE: &str = "Latihan IELTS Speaking bareng Pulo";
+const SIGN_IN_BODY: &str = "Pulo jadi examiner IELTS kamu: nanya Part 1 sampai 3, dengerin jawabanmu, kasih band score, terus nge-roast. Masuk ke Oyenza dulu buat mulai.";
 
 pub fn height(st: &AppState) -> f32 {
     if !signed_in(st) {
@@ -124,7 +124,7 @@ fn draw_home(ui: &mut Ui, st: &mut AppState, left: Rect, right: Rect) {
     let what = if st.ielts.talking() { Oyen::Talk { since: st.ielts.said_at } } else { Oyen::Rest { look: look(ui, at, page) } };
     head(ui, at, HEAD_W, what);
     ui.c.text("Latihan IELTS", Rect::new(left.x, left.y + 110.0, left.w, 20.0), &TextStyle::headline().center());
-    ui.c.text("Oyen jadi examiner kamu", Rect::new(left.x, left.y + 131.0, left.w, 16.0), &TextStyle::footnote().color(palette::TEXT_DIM).center());
+    ui.c.text("Pulo jadi examiner kamu", Rect::new(left.x, left.y + 131.0, left.w, 16.0), &TextStyle::footnote().color(palette::TEXT_DIM).center());
     if let Some(me) = &st.ielts.me {
         let today = format!("Hari ini {} dari {} sesi", me.today.used.min(me.today.cap), me.today.cap);
         ui.c.text(&today, Rect::new(left.x, left.y + 151.0, left.w, 15.0), &TextStyle::caption().color(palette::TEXT_FAINT).center());
@@ -292,14 +292,14 @@ fn draw_session(ui: &mut Ui, st: &mut AppState, left: Rect, right: Rect) {
     // What he heard, what's happening, and the way out.
     let c = &st.ielts;
     if !c.heard.is_empty() && matches!(phase, Phase::Talking | Phase::Thinking) && body_free(c) {
-        let heard = format!("Oyen dengar: \u{201c}{}\u{201d}", c.heard);
+        let heard = format!("Pulo dengar: \u{201c}{}\u{201d}", c.heard);
         ui.c.text(&heard, Rect::new(right.x, buttons_y - 44.0, right.w, 16.0), &TextStyle::caption().color(palette::TEXT_FAINT));
     }
     // While the answer is heard (7 to 9 s), the dots keep going.
-    let thinking = ["Oyen mikir.", "Oyen mikir..", "Oyen mikir..."];
+    let thinking = ["Pulo mikir.", "Pulo mikir..", "Pulo mikir..."];
     let status = match phase {
-        Phase::Starting => "Oyen siap-siap\u{2026}",
-        Phase::Talking => "Oyen lagi ngomong\u{2026}",
+        Phase::Starting => "Pulo siap-siap\u{2026}",
+        Phase::Talking => "Pulo lagi ngomong\u{2026}",
         Phase::Prep { .. } => "Siapin jawabanmu. Rekaman mulai sendiri pas waktunya habis.",
         Phase::Ready => c.hint.map_or("Giliran kamu. Ketuk mic buat jawab.", |h| h.line()),
         Phase::Recording { .. } => "Ngerekam\u{2026} ketuk lagi kalau udah.",

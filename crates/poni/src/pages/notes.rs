@@ -50,8 +50,8 @@ const MIC_SETTINGS: &str =
     if cfg!(target_os = "macos") { "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone" } else { "ms-settings:privacy-microphone" };
 /// What the computer's own sound is called on this one.
 const OWN_SOUND: &str = if cfg!(target_os = "macos") { "the Mac's sound" } else { "the PC's sound" };
-const SIGN_IN_TITLE: &str = "Meeting notes by Oyen";
-const SIGN_IN_BODY: &str = "One click and Oyen listens to your meeting, Meet, Zoom, Teams or in the room, then writes the notes and the transcript. Sign in to Oyenza to start.";
+const SIGN_IN_TITLE: &str = "Meeting notes by Pulo";
+const SIGN_IN_BODY: &str = "One click and Pulo listens to your meeting, Meet, Zoom, Teams or in the room, then writes the notes and the transcript. Sign in to Oyenza to start.";
 
 pub fn height(st: &AppState) -> f32 {
     if signed_in(st) || st.notes.live() {
@@ -122,7 +122,7 @@ fn draw_pro(ui: &mut Ui, st: &AppState, area: Rect) {
     ui.c.text("PRO", tag, &TextStyle::caption().weight(Weight::Bold).center().color(ACCENT));
     let r = Rect::new(area.x + LEFT_W + COL_GAP, area.y + 4.0, (area.w - LEFT_W - COL_GAP).max(0.0).min(420.0), area.h);
     let y = headline(ui, r, "Meeting notes are part of Studio Pro");
-    let body = "One click and Oyen listens to your meeting, Meet, Zoom, Teams or in the room, then writes the notes and the whole transcript. Studio Pro is in early access, so it isn't on this account yet.";
+    let body = "One click and Pulo listens to your meeting, Meet, Zoom, Teams or in the room, then writes the notes and the whole transcript. Studio Pro is in early access, so it isn't on this account yet.";
     let y = para(ui, Rect::new(r.x, y + 6.0, r.w, 80.0), body, palette::TEXT_DIM);
     if let OyenzaLink::Connected { account } = &st.oyenza.link {
         para(ui, Rect::new(r.x, y + 10.0, r.w, 20.0), &format!("Signed in as {account}"), palette::TEXT_FAINT);
@@ -199,7 +199,7 @@ fn buttons(ui: &mut Ui, x: f32, y: f32, list: &[(&str, &str, Option<Icon>, PillS
 
 fn draw_idle(ui: &mut Ui, st: &mut AppState, r: Rect) {
     let r = Rect::new(r.x, r.y + 4.0, r.w.min(420.0), r.h);
-    let y = headline(ui, r, "Oyen takes your meeting notes");
+    let y = headline(ui, r, "Pulo takes your meeting notes");
     let body = if cfg!(target_os = "macos") {
         "He listens to your microphone and your Mac's sound, so a call in Meet, Zoom or Teams is heard with no bot joining. Stop when it's over: the notes and the transcript are saved to Documents \u{203a} ihz.land \u{203a} Notes."
     } else {
@@ -226,7 +226,7 @@ fn draw_idle(ui: &mut Ui, st: &mut AppState, r: Rect) {
 
 fn draw_listening(ui: &mut Ui, st: &mut AppState, r: Rect) {
     let r = Rect::new(r.x, r.y + 4.0, r.w.min(420.0), r.h);
-    let y = headline(ui, r, "Oyen is listening");
+    let y = headline(ui, r, "Pulo is listening");
     let y = para(ui, Rect::new(r.x, y + 4.0, r.w, 40.0), "Stop when the meeting ends, and he'll write it up.", palette::TEXT_DIM) + 14.0;
     let rows = [("You", "microphone", st.notes.mic_on, st.notes.mic), ("The call", OWN_SOUND, st.notes.pc_on, st.notes.pc)];
     for (i, (name, source, on, level)) in rows.into_iter().enumerate() {
@@ -252,7 +252,7 @@ fn draw_listening(ui: &mut Ui, st: &mut AppState, r: Rect) {
 
 fn draw_sending(ui: &mut Ui, r: Rect, sent: u32, parts: u32) {
     let r = Rect::new(r.x, r.y + 4.0, r.w.min(420.0), r.h);
-    let y = headline(ui, r, "Sending the meeting to Oyen");
+    let y = headline(ui, r, "Sending the meeting to Pulo");
     let line = if parts > 1 { format!("Part {} of {parts}", (sent + 1).min(parts)) } else { "One part".to_string() };
     let y = para(ui, Rect::new(r.x, y + 4.0, r.w, 20.0), &line, palette::TEXT_DIM) + 12.0;
     let bar = Rect::new(r.x, y, r.w, BAR_H);
@@ -264,7 +264,7 @@ fn draw_sending(ui: &mut Ui, r: Rect, sent: u32, parts: u32) {
 
 fn draw_writing(ui: &mut Ui, st: &AppState, r: Rect, since: f64) {
     let r = Rect::new(r.x, r.y + 4.0, r.w.min(420.0), r.h);
-    let y = headline(ui, r, "Oyen is writing your notes\u{2026}");
+    let y = headline(ui, r, "Pulo is writing your notes\u{2026}");
     // About a minute for each 20 minutes of meeting, as the server takes it.
     let mins = (st.notes.secs / 1200.0).ceil().max(1.0) as u32;
     let line = format!("{} so far \u{b7} usually about {mins} min for a meeting this long", fmt_length(st.now - since));

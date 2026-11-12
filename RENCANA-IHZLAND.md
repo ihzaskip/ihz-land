@@ -20,7 +20,7 @@ Keputusan user (12 Nov 2026) ada di bawah. Centang tiap langkah setelah selesai.
        menu, island, Settings, installer NSIS (nama, shortcut, uninstall display name),
        nama file rilis (`ihz-land-Setup-x.exe`), dan User-Agent.
 3. [ ] **Ikon & art**: ikon aplikasi, art installer (`installer/art`), `docs/brand`, situs.
-4. [ ] **Karakter orisinal** pengganti Oyen (tema dan mood sama: istirahat, musik,
+4. [x] **Karakter orisinal** (Pulo, pulau kecil bertunas) pengganti Oyen (tema dan mood sama: istirahat, musik,
        kursor, malam). Digambar dengan kode, bukan meniru kucing Oyen.
 5. [ ] **Buang fitur akun Oyenza**: tab Oyenza (uang masuk/keluar, tagihan, catat
        pengeluaran), Health (langkah), Oyenza Inference di AI usage, Meeting notes

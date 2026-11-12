@@ -301,9 +301,9 @@ impl Problem {
             Problem::Paused => "Meeting notes are paused",
             Problem::DailyCap => "Today's minutes are used up",
             Problem::TooLong => "That meeting is too long",
-            Problem::Busy(_) => "Oyen is swamped",
-            Problem::AiFailed | Problem::Server | Problem::Gone | Problem::TooSlow => "Oyen couldn't write the notes",
-            Problem::NothingHeard => "Oyen didn't hear anyone",
+            Problem::Busy(_) => "Pulo is swamped",
+            Problem::AiFailed | Problem::Server | Problem::Gone | Problem::TooSlow => "Pulo couldn't write the notes",
+            Problem::NothingHeard => "Pulo didn't hear anyone",
             Problem::Unfinished => "Your last meeting isn't written up",
             Problem::ProRequired => "Meeting notes are part of Studio Pro",
             Problem::Offline => "Can't reach Oyenza",
@@ -318,7 +318,7 @@ impl Problem {
     /// until the notes are saved or it is thrown away.
     pub fn line(self) -> String {
         match self {
-            Problem::Paused => "Oyen is resting. Your recording is kept: try again later.".into(),
+            Problem::Paused => "Pulo is resting. Your recording is kept: try again later.".into(),
             Problem::DailyCap => "Your recording is kept. Try again tomorrow.".into(),
             Problem::TooLong => "Meetings up to 3 hours are written up.".into(),
             Problem::Busy(Some(s)) if s > 1 => format!("Your recording is kept. Try again in {s} seconds."),
@@ -527,7 +527,7 @@ pub fn markdown(n: &Notes, started: &LocalDateTime, with_transcript: bool) -> St
             md += &format!("**[{}] {}:** {}\n\n", fmt_length(l.t), l.who, l.text);
         }
     }
-    md += "\n---\nNotes by Oyen, in ihz.land\n";
+    md += "\n---\nNotes by Pulo, in ihz.land\n";
     md
 }
 

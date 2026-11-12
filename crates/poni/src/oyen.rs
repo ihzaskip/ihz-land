@@ -18,10 +18,19 @@ use std::f32::consts::TAU;
 use std::f64::consts::PI;
 use std::sync::OnceLock;
 
-/// Oyen's orange: the theme's accent.
-pub const ORANGE: Color = Color::hex(oyen::ORANGE);
-const FOLD: Color = Color::hex(oyen::FOLD_ORANGE);
-const INK: Color = Color::hex(oyen::INK);
+/// ihz.land: the character is Pulo, a small island hill with a sprout on
+/// top, an original drawing in place of the Oyenza cat (whose look isn't
+/// covered by the MIT license). It keeps the mood engine (`poni_core::oyen`):
+/// its eyes, extras and head motion; the ear's flick and wave become the
+/// sprout swaying.
+///
+/// Pulo's green: the theme's accent (the name stays, to keep upstream
+/// merges small).
+pub const ORANGE: Color = Color::hex(0x1D9E75);
+/// The sprout's stem, and the darker green some shapes use.
+const FOLD: Color = Color::hex(0x0F6E56);
+const LEAF: Color = Color::hex(0x5DCAA5);
+const INK: Color = Color::hex(0x04342C);
 const PINK: Color = Color::hex(oyen::PINK);
 const GREEN: Color = Color::hex(oyen::GREEN);
 /// The Oyenza app icon's ground.
@@ -472,14 +481,14 @@ fn draw_face(c: &mut Canvas, f: &Frame, origin: Point, k: f32, float: Color) {
     };
     // Strokes scale with the head (it squashes a few percent when bouncing).
     let stroke_k = k * ((h.a * h.d - h.b * h.c).abs().sqrt() as f32);
-    let tip = if f.tip.faces_up { ORANGE } else { FOLD };
-    if f.tip.behind_head {
-        c.path(&segs(&f.tip.path, &map), Some(tip), None);
-    }
-    c.path(&segs(oyen::head_path(), &map), Some(ORANGE), None);
-    if !f.tip.behind_head {
-        c.path(&segs(&f.tip.path, &map), Some(tip), None);
-    }
+    // The sprout sways with the ear's old moves: folded (rest) leans a
+    // little left, upright (a flick, a wave) swings right.
+    let sway = oyen::Affine::rotation_about(-8.0 + 26.0 * (1.0 - f.fold), oyen::Point::new(0.0, PULO_TOP));
+    let sprout = |p: oyen::Point| map(sway.apply(p));
+    let (stem, leaves, hill) = pulo_paths();
+    c.path(&segs(stem, &sprout), None, Some((FOLD, 3.2 * stroke_k)));
+    c.path(&segs(leaves, &sprout), Some(LEAF), None);
+    c.path(&segs(hill, &map), Some(ORANGE), None);
     for s in f.eyes.iter().chain(&f.extras) {
         let color = match s.paint {
             Paint::Ink if s.place == Place::Eye => INK,
@@ -494,6 +503,23 @@ fn draw_face(c: &mut Canvas, f: &Frame, origin: Point, k: f32, float: Color) {
             None => c.path(&path, Some(color), None),
         });
     }
+}
+
+/// The hill's top, in mark units (the eyes sit at y 6, the chin at 38.5).
+const PULO_TOP: f64 = -28.0;
+
+/// Pulo's shapes in mark units: the stem (a stroke), the two leaves and the
+/// hill. The hill is as wide as the old head, so every layout still fits.
+fn pulo_paths() -> &'static (Path, Path, Path) {
+    static PATHS: OnceLock<(Path, Path, Path)> = OnceLock::new();
+    PATHS.get_or_init(|| {
+        let p = |d: &str| Path::from_svg(d).unwrap_or_default();
+        (
+            p("M 0 -26 C -1 -36 0 -44 4 -50"),
+            p("M 4 -50 C 12 -58 25 -56 30 -48 C 20 -46 11 -46 4 -50 Z M 4 -50 C -3 -59 -16 -59 -21 -52 C -11 -50 -3 -49 4 -50 Z"),
+            p("M -50 40 C -48 4 -28 -28 0 -28 C 28 -28 48 4 50 40 Z"),
+        )
+    })
 }
 
 fn segs(p: &Path, map: &impl Fn(oyen::Point) -> Point) -> Vec<Seg> {

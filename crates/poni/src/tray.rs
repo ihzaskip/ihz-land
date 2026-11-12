@@ -110,7 +110,7 @@ fn item(label: &str, cmd: MenuCmd, checked: bool) -> MenuItem {
 fn idle_label(s: IdleStyle, theme: Theme) -> &'static str {
     match s {
         IdleStyle::Clock => "Clock",
-        IdleStyle::Eyes if theme == Theme::Oyen => "Oyen",
+        IdleStyle::Eyes if theme == Theme::Oyen => "Pulo",
         IdleStyle::Eyes => "Eyes",
         IdleStyle::Minimal => "Minimal",
         IdleStyle::Hidden => "Hidden until hover",
@@ -132,7 +132,7 @@ pub fn menu_items(s: &Settings, pinned: bool, oyenza: &OyenzaLink, recorder: boo
         item("Keep island open", MenuCmd::TogglePinned, pinned),
         MenuItem::Sub {
             label: "Theme".into(),
-            items: vec![theme("Classic", Theme::Classic), theme("Oyen", Theme::Oyen), theme("Glass", Theme::Glass), theme("Pill", Theme::Pill), theme("Diorama", Theme::Diorama)],
+            items: vec![theme("Classic", Theme::Classic), theme("Pulo", Theme::Oyen), theme("Glass", Theme::Glass), theme("Pill", Theme::Pill), theme("Diorama", Theme::Diorama)],
         },
         // The status bar is listed only in Pill, as on the Settings page: the
         // other themes would draw the clock for it (Diorama its picture).
@@ -456,7 +456,7 @@ mod tests {
 
     #[test]
     fn the_theme_submenu_has_every_theme_and_checks_the_one_in_use() {
-        let names = ["Classic", "Oyen", "Glass", "Pill", "Diorama"];
+        let names = ["Classic", "Pulo", "Glass", "Pill", "Diorama"];
         let choices = theme_choices(&Settings::default());
         assert_eq!(choices.iter().map(|c| c.0.as_str()).collect::<Vec<_>>(), names);
         for (i, (label, cmd, _)) in choices.iter().enumerate() {

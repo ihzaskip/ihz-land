@@ -146,8 +146,8 @@ fn icon(a: &Addon) -> Icon {
 fn about(a: &Addon) -> &'static str {
     match a.id {
         "ai" => "Each AI service on this computer gets a card: your plan, each limit with when it resets, and what's left. Codex, Claude Code, Cursor, Gemini CLI, GitHub Copilot and more. Sign-ins stay here, and nothing about your usage goes to Oyenza.",
-        "notes" => "One click and Oyen listens to your call in Meet, Zoom, Teams or WhatsApp, with no bot joining, then writes up the summary, the decisions and who does what, with the whole transcript. The recording goes to Oyenza's server and is deleted once your notes are saved.",
-        "ielts" => "Oyen asks IELTS Speaking questions out loud, listens to your answers and gives you a band. Your answers go to Oyenza's server to be scored and are deleted once that's done. IELTS® is a trademark of the IELTS partners. Not official IELTS material, not endorsed by them.",
+        "notes" => "One click and Pulo listens to your call in Meet, Zoom, Teams or WhatsApp, with no bot joining, then writes up the summary, the decisions and who does what, with the whole transcript. The recording goes to Oyenza's server and is deleted once your notes are saved.",
+        "ielts" => "Pulo asks IELTS Speaking questions out loud, listens to your answers and gives you a band. Your answers go to Oyenza's server to be scored and are deleted once that's done. IELTS® is a trademark of the IELTS partners. Not official IELTS material, not endorsed by them.",
         "downloader" => "Paste a link, pick Video or Sound, and watch it come in to Downloads and the Shelf. Only what you have the right to keep.",
         _ => a.blurb,
     }

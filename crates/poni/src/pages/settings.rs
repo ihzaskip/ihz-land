@@ -86,7 +86,7 @@ const CHIP_ICON_GAP: f32 = 5.0;
 const CHIP_GAP: f32 = 6.0;
 
 // Glass: on Windows from a copy of the screen, on a Mac macOS's own glass.
-const THEMES: [(Theme, &str); 5] = [(Theme::Classic, "Classic"), (Theme::Oyen, "Oyen"), (Theme::Glass, "Glass"), (Theme::Pill, "Pill"), (Theme::Diorama, "Diorama")];
+const THEMES: [(Theme, &str); 5] = [(Theme::Classic, "Classic"), (Theme::Oyen, "Pulo"), (Theme::Glass, "Glass"), (Theme::Pill, "Pill"), (Theme::Diorama, "Diorama")];
 
 /// An idle look's name in the picker (`eyes` is Oyen in his theme).
 fn idle_name(s: IdleStyle, eyes: &'static str) -> &'static str {
@@ -102,7 +102,7 @@ fn idle_name(s: IdleStyle, eyes: &'static str) -> &'static str {
 /// The idle looks `theme` offers, as the picker names them.
 fn idle_names(theme: Theme) -> Vec<&'static str> {
     // In the Oyen theme the eyes are Oyen's own (as in the tray menu).
-    let eyes = if theme == Theme::Oyen { "Oyen" } else { "Eyes" };
+    let eyes = if theme == Theme::Oyen { "Pulo" } else { "Eyes" };
     status::looks(theme).iter().map(|s| idle_name(*s, eyes)).collect()
 }
 
@@ -740,7 +740,7 @@ mod tests {
 
     #[test]
     fn the_theme_picker_has_every_theme_by_its_name() {
-        assert_eq!(THEMES.map(|t| t.1), ["Classic", "Oyen", "Glass", "Pill", "Diorama"]);
+        assert_eq!(THEMES.map(|t| t.1), ["Classic", "Pulo", "Glass", "Pill", "Diorama"]);
         for (i, (theme, name)) in THEMES.iter().enumerate() {
             assert_eq!(place(*theme), i, "{name}");
         }
@@ -754,7 +754,7 @@ mod tests {
         // Diorama rests as its picture, with the time or alone: no eyes.
         assert_eq!(idle_names(Theme::Diorama), ["Clock", "Minimal", "Hidden"]);
         // In his theme the eyes are Oyen's own, and the status bar is Pill's.
-        assert_eq!(idle_names(Theme::Oyen), ["Clock", "Oyen", "Minimal", "Hidden"]);
+        assert_eq!(idle_names(Theme::Oyen), ["Clock", "Pulo", "Minimal", "Hidden"]);
         assert_eq!(idle_names(Theme::Pill), ["Clock", "Eyes", "Minimal", "Hidden", "Status"]);
         // A name for every look a theme offers, one choice each.
         for (theme, _) in THEMES {

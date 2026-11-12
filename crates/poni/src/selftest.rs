@@ -2450,7 +2450,7 @@ fn ielts_server(listener: std::net::TcpListener, seen: &Mutex<Vec<String>>, stop
                 line.push_str(&format!(" level={} spice={}{}", json["level"], json["spice"], if tz { " tz" } else { "" }));
                 let turn = format!(
                     r#"{{"part":1,"kind":"intro","expect":"answer","max_secs":30,"prep_secs":0,"cue_card":null,"say":[{},{{"text":"Where are you from?","lang":"en","audio":null}}]}}"#,
-                    clip("Hi, I'm Oyen. Let's begin.")
+                    clip("Hi, I'm Pulo. Let's begin.")
                 );
                 (200, format!(r#"{{"id":"{IELTS_SESSION}","turn":{turn},"fillers":[{}]}}"#, clip("Hmm, bentar ya.")))
             }

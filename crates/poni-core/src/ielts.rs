@@ -600,11 +600,11 @@ impl Problem {
             Problem::ProRequired => "Latihan IELTS khusus Studio Pro",
             Problem::NoSession => "Sesinya udah berhenti",
             Problem::TooBig => "Jawabannya kepanjangan",
-            Problem::Busy(_) => "Oyen lagi rame",
-            Problem::AiFailed => "Oyen gagal mikir",
+            Problem::Busy(_) => "Pulo lagi rame",
+            Problem::AiFailed => "Pulo gagal mikir",
             Problem::Offline => "Nggak nyambung ke Oyenza",
             Problem::SignedOut => "Kamu udah keluar dari Oyenza",
-            Problem::StillThinking => "Oyen masih mikirin jawabanmu",
+            Problem::StillThinking => "Pulo masih mikirin jawabanmu",
             Problem::BadLevel => "Level itu nggak ada",
             Problem::BadAudio => "Rekamanmu nggak kebaca",
             Problem::Server => "Ada yang error di server",
@@ -617,7 +617,7 @@ impl Problem {
     /// What to do about it. `mac`: the Mac's words for the microphone switch.
     pub fn line(self, mac: bool) -> String {
         match self {
-            Problem::Paused => "Oyen istirahat dulu. Coba lagi nanti ya.".into(),
+            Problem::Paused => "Pulo istirahat dulu. Coba lagi nanti ya.".into(),
             Problem::DailyCap => "Sesi latihan hari ini udah kepakai semua. Lanjut besok ya.".into(),
             Problem::TooFast => "Kebanyakan permintaan dalam sejam ini. Tunggu sebentar, terus coba lagi.".into(),
             Problem::LevelLocked => "Capai target band di level sebelumnya dulu.".into(),
@@ -1813,7 +1813,7 @@ mod tests {
         let fx = c.start(Spice::Ngegas);
         assert_eq!(fx, [Effect::Call(Call::Start { level: 2, spice: Spice::Ngegas })]);
         assert_eq!(c.phase, Phase::Starting);
-        let t = turn(1, Kind::Intro, vec![say("Hi, I'm Oyen.", Some("a.mp3")), say("Where are you from?", Some("b.mp3"))]);
+        let t = turn(1, Kind::Intro, vec![say("Hi, I'm Pulo.", Some("a.mp3")), say("Where are you from?", Some("b.mp3"))]);
         c.reply(Reply::Started { id: "s1".into(), turn: t, fillers: Vec::new() }, 1.0)
     }
 
@@ -2067,7 +2067,7 @@ mod tests {
         let fx = started(&mut c);
         assert_eq!(fx, [Effect::PauseMusic, Effect::Play("a.mp3".into())]);
         assert!(c.holds() && c.talking() && c.phase == Phase::Talking);
-        assert_eq!(c.say.as_ref().unwrap().text, "Hi, I'm Oyen.");
+        assert_eq!(c.say.as_ref().unwrap().text, "Hi, I'm Pulo.");
         // A clip ends: deleted, the next one plays; then it's the person's turn.
         assert_eq!(c.voice_ended(2.0), [Effect::Delete("a.mp3".into()), Effect::PauseMusic, Effect::Play("b.mp3".into())]);
         assert_eq!(c.voice_ended(3.0), [Effect::Delete("b.mp3".into())]);
@@ -2129,7 +2129,7 @@ mod tests {
     fn lines_without_a_voice_show_for_their_reading_time() {
         let mut c = coach();
         c.start(Spice::Sopan);
-        let t = turn(1, Kind::Intro, vec![say("Halo, aku Oyen. Kita mulai ya.", None), say("Do you work or study?", None)]);
+        let t = turn(1, Kind::Intro, vec![say("Halo, aku Pulo. Kita mulai ya.", None), say("Do you work or study?", None)]);
         assert_eq!(c.reply(Reply::Started { id: "s".into(), turn: t, fillers: Vec::new() }, 10.0), [Effect::PauseMusic]);
         assert!(c.talking() && !c.voiced);
         let until = c.deadline().unwrap();

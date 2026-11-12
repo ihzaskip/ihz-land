@@ -347,7 +347,7 @@ pub const AI_USAGE: Addon = Addon {
 pub const IELTS: Addon = Addon {
     id: "ielts",
     title: "IELTS",
-    blurb: "Practise IELTS Speaking out loud: Oyen asks, listens and gives you a band.",
+    blurb: "Practise IELTS Speaking out loud: Pulo asks, listens and gives you a band.",
     mac_blurb: None,
     tag: "",
     files: &[],
@@ -365,7 +365,7 @@ pub const IELTS: Addon = Addon {
 pub const MEETING_NOTES: Addon = Addon {
     id: "notes",
     title: "Meeting notes",
-    blurb: "One click and Oyen listens to your meeting, Meet, Zoom or Teams, and writes the notes.",
+    blurb: "One click and Pulo listens to your meeting, Meet, Zoom or Teams, and writes the notes.",
     mac_blurb: None,
     tag: "",
     files: &[],

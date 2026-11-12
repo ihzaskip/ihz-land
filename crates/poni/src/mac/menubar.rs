@@ -78,7 +78,7 @@ pub fn menu_items(s: &Settings, pinned: bool, login: Login, recorder: bool, oyen
         let label = match st {
             IdleStyle::Clock => "Clock",
             // In the Oyen theme the eyes are Oyen's own.
-            IdleStyle::Eyes if s.theme == Theme::Oyen => "Oyen",
+            IdleStyle::Eyes if s.theme == Theme::Oyen => "Pulo",
             IdleStyle::Eyes => "Eyes",
             IdleStyle::Minimal => "Minimal",
             IdleStyle::Hidden => "Hidden until hover",
@@ -92,7 +92,7 @@ pub fn menu_items(s: &Settings, pinned: bool, login: Login, recorder: bool, oyen
         item("Keep island open", MenuCmd::TogglePinned, pinned),
         MenuItem::Sub {
             label: "Theme".into(),
-            items: vec![theme("Classic", Theme::Classic), theme("Oyen", Theme::Oyen), theme("Glass", Theme::Glass), theme("Pill", Theme::Pill), theme("Diorama", Theme::Diorama)],
+            items: vec![theme("Classic", Theme::Classic), theme("Pulo", Theme::Oyen), theme("Glass", Theme::Glass), theme("Pill", Theme::Pill), theme("Diorama", Theme::Diorama)],
         },
         MenuItem::Sub { label: "Idle look".into(), items: crate::pill::status::looks(s.theme).iter().map(|l| style(*l)).collect() },
         item("Synced lyrics", MenuCmd::ToggleLyrics, s.lyrics),
