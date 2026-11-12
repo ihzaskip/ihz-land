@@ -191,7 +191,7 @@ impl Section {
             Section::Prayer => "Prayer times",
             Section::Caffeine => "Caffeine",
             Section::Ai => "AI usage",
-            Section::Oyenza => "Account",
+            Section::Oyenza => "ihz.app account",
             Section::About => "About",
         }
     }

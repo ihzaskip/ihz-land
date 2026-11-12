@@ -1868,7 +1868,7 @@ pub fn fetch_phone_page(url: &str) -> (bool, String) {
 // ---------------------------------------------------------------- the IELTS turn
 
 /// The key the run's calls carry (never a real one).
-const IELTS_KEY: &str = "oyzd_selftest_not_a_real_key_0000000000000000000";
+const IELTS_KEY: &str = "ihzd_selftest_not_a_real_key_0000000000000000000";
 /// A step's budget: the ladder, Oyen's intro, the verdict, Udahan.
 const IELTS_STEP_S: f64 = 20.0;
 const IELTS_SESSION: &str = "smoke-1";

@@ -100,13 +100,13 @@ pub fn ielts_dir() -> PathBuf {
 /// only this Mac account can read (`services::secret`). Signing out removes
 /// it. With the settings, not the cache: macOS may empty caches by itself.
 pub fn oyenza_link_path() -> PathBuf {
-    data_dir().join("oyenza-link.bin")
+    data_dir().join("ihz-link.bin")
 }
 
-/// A key signed out while Oyenza couldn't be reached, kept only to tell the
+/// A key signed out while ihz.app couldn't be reached, kept only to tell the
 /// server once it can.
 pub fn oyenza_revoke_path() -> PathBuf {
-    data_dir().join("oyenza-revoke.bin")
+    data_dir().join("ihz-revoke.bin")
 }
 
 /// A key typed into the AI tab for one service, or the inference.oyenza.com

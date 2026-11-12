@@ -95,7 +95,7 @@ fn known_folder(id: &windows::core::GUID) -> Option<PathBuf> {
 /// The Oyenza sign-in (this PC's key and the masked account), sealed with
 /// DPAPI. Signing out or uninstalling removes it.
 pub fn oyenza_link_path() -> PathBuf {
-    cache_dir().join("oyenza-link.bin")
+    cache_dir().join("ihz-link.bin")
 }
 
 /// Add-on files, one folder per add-on (`services::addons`). Local, never
@@ -117,10 +117,10 @@ pub fn paired_phones_path() -> PathBuf {
     cache_dir().join("paired-phones.bin")
 }
 
-/// A key signed out while Oyenza couldn't be reached, sealed, kept only to
+/// A key signed out while ihz.app couldn't be reached, sealed, kept only to
 /// tell the server once it can.
 pub fn oyenza_revoke_path() -> PathBuf {
-    cache_dir().join("oyenza-revoke.bin")
+    cache_dir().join("ihz-revoke.bin")
 }
 
 /// A key typed into the AI tab for one service, or the inference.oyenza.com

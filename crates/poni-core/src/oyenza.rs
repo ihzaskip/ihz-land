@@ -1,6 +1,9 @@
-//! Signing in to the account, optional: a device code, the way a TV signs
-//! in. The island shows 8 letters, the person approves them on the web
-//! (where they are signed in anyway), and the island gets a key of its own.
+//! Signing in to ihz.app, optional: a device code, the way a TV signs in.
+//! The island shows 8 letters, the person approves them at ihz.app/device
+//! (signed in with Google there anyway), and the island gets a key of its
+//! own (`ihzd_…`). The protocol is the one ihz.app documents in
+//! `ihz-web/docs/device-login.md`: `POST /connect/start`, `/connect/token`
+//! and `/connect/disconnect`.
 //! No password is ever typed into the app. The key is what other services
 //! (the IELTS coach) are asked with; this module only gets it, keeps it and
 //! gives it back.
@@ -12,12 +15,14 @@
 use crate::datetime::{days_from_civil, LocalDateTime};
 use serde::{Deserialize, Serialize};
 
-pub const API: &str = "https://api.oyenza.app";
-pub const WEB: &str = "https://oyenza.app";
+pub const API: &str = "https://ihz.app";
+pub const WEB: &str = "https://ihz.app";
 pub const APP: &str = "poni";
 /// The account's name as people see it, and the page where a code is approved.
-pub const NAME: &str = "Oyenza";
-pub const APPROVE_PAGE: &str = "oyenza.app/connect";
+pub const NAME: &str = "ihz.app";
+pub const APPROVE_PAGE: &str = "ihz.app/device";
+/// Every device key starts so (48 characters in all).
+pub const KEY_PREFIX: &str = "ihzd_";
 
 /// Errors back off from a minute, doubling, up to this.
 pub const MAX_BACKOFF_S: u64 = 15 * 60;
@@ -38,7 +43,7 @@ pub struct Link {
 
 pub fn parse_link(s: &str) -> Option<Link> {
     let l: Link = serde_json::from_str(s).ok()?;
-    (l.key.starts_with("oyzd_") && l.key.len() == 48).then_some(l)
+    (l.key.starts_with(KEY_PREFIX) && l.key.len() == 48).then_some(l)
 }
 
 pub fn link_json(l: &Link) -> String {
@@ -59,8 +64,7 @@ pub fn disconnect_url() -> String {
     format!("{API}/connect/disconnect")
 }
 
-/// `platform`: [`PLATFORM`], so oyenza.app shows a Mac as one (a server from
-/// before 0.2.7's leaves it out and stores every PC as Windows).
+/// `platform`: [`PLATFORM`], so ihz.app shows a Mac as one.
 pub fn start_body(pc_name: &str, version: &str, platform: &str) -> String {
     serde_json::json!({ "app": APP, "name": pc_name, "version": version, "platform": platform }).to_string()
 }
@@ -72,10 +76,10 @@ pub fn token_body(device_code: &str) -> String {
     serde_json::json!({ "deviceCode": device_code }).to_string()
 }
 
-/// What oyenza.app lists a computer as when the system gives no name.
+/// What ihz.app lists a computer as when the system gives no name.
 const UNNAMED: &str = if cfg!(target_os = "macos") { "Mac" } else { "Windows PC" };
 
-/// The PC's name as oyenza.app will list it: one printable line, 40 characters
+/// The PC's name as ihz.app will list it: one printable line, 40 characters
 /// at most ([`UNNAMED`] when the system gives none).
 pub fn pc_name(raw: &str) -> String {
     let clean: String = raw.chars().filter(|c| !c.is_control()).collect::<String>().split_whitespace().collect::<Vec<_>>().join(" ");
@@ -197,9 +201,9 @@ pub fn backoff_s(fails: u32, retry_after_s: Option<u64>) -> u64 {
 pub fn connect_failure_text(code: &str) -> (&'static str, &'static str) {
     match code {
         "expired" | "invalid_code" => ("Sign-in code expired", "Start again from the tray"),
-        "denied" => ("Not connected", "The code was refused in oyenza.app"),
-        "offline" => ("Can't reach Oyenza", "Check the connection and try again"),
-        _ => ("Couldn't sign in to Oyenza", "Try again from the tray"),
+        "denied" => ("Not connected", "The code was refused on ihz.app"),
+        "offline" => ("Can't reach ihz.app", "Check the connection and try again"),
+        _ => ("Couldn't sign in to ihz.app", "Try again from the tray"),
     }
 }
 
@@ -215,9 +219,9 @@ mod tests {
 
     #[test]
     fn urls_and_bodies() {
-        assert_eq!(start_url(), "https://api.oyenza.app/connect/start");
-        assert_eq!(token_url(), "https://api.oyenza.app/connect/token");
-        assert_eq!(disconnect_url(), "https://api.oyenza.app/connect/disconnect");
+        assert_eq!(start_url(), "https://ihz.app/connect/start");
+        assert_eq!(token_url(), "https://ihz.app/connect/token");
+        assert_eq!(disconnect_url(), "https://ihz.app/connect/disconnect");
         let b: serde_json::Value = serde_json::from_str(&start_body("DESKTOP-7Q2K", "0.1.5", "windows")).unwrap();
         assert_eq!(b, serde_json::json!({ "app": "poni", "name": "DESKTOP-7Q2K", "version": "0.1.5", "platform": "windows" }));
         assert_eq!(PLATFORM, if cfg!(target_os = "macos") { "macos" } else { "windows" });
@@ -244,7 +248,7 @@ mod tests {
     #[test]
     fn claims() {
         assert_eq!(parse_claim(200, r#"{"status":"waiting"}"#), Some(Claim::Waiting));
-        let key = format!("oyzd_{}", "A".repeat(43));
+        let key = format!("ihzd_{}", "A".repeat(43));
         let body = format!(r#"{{"status":"connected","key":"{key}","device":{{"id":"d1","name":"DESKTOP-7Q2K"}},"account":"a•••@example.com"}}"#);
         assert_eq!(
             parse_claim(200, &body),
@@ -257,6 +261,9 @@ mod tests {
         assert_eq!(parse_claim(404, r#"{"error":"invalid_code"}"#), Some(Claim::Invalid));
         assert_eq!(parse_claim(500, "oops"), None);
         assert_eq!(parse_link(r#"{"key":"oyzc_x","account":"","device_id":"","device_name":""}"#), None);
+        // An Oyenza key from before the fork is not one of ours.
+        let old = format!(r#"{{"key":"oyzd_{}","account":"","device_id":"","device_name":""}}"#, "A".repeat(43));
+        assert_eq!(parse_link(&old), None);
     }
 
     #[test]

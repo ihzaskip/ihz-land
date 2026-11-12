@@ -48,7 +48,7 @@ impl OyenzaService {
         std::thread::Builder::new()
             .name("poni-oyenza".into())
             .spawn(move || worker_main(worker, sink))
-            .map_err(|e| std::io::Error::other(format!("could not start the Oyenza thread: {e}")))?;
+            .map_err(|e| std::io::Error::other(format!("could not start the sign-in thread: {e}")))?;
         Ok(Self { shared })
     }
 
@@ -198,7 +198,7 @@ impl Worker {
             crate::pinfo!("oyenza: signed in (this PC is {})", l.device_name);
             self.send(OyenzaEvent::Restored { account: l.account.clone() });
         }
-        self.revoke = crate::services::secret::load(&crate::paths::oyenza_revoke_path()).filter(|k| k.starts_with("oyzd_"));
+        self.revoke = crate::services::secret::load(&crate::paths::oyenza_revoke_path()).filter(|k| k.starts_with(oyenza::KEY_PREFIX));
     }
 
     /// When the worker next has something to do on its own.
@@ -300,7 +300,7 @@ impl Worker {
             }
             Some(Claim::Denied) => {
                 self.pending = None;
-                crate::pinfo!("oyenza: the sign-in code was refused in oyenza.app");
+                crate::pinfo!("oyenza: the sign-in code was refused on ihz.app");
                 self.send(OyenzaEvent::ConnectFailed("denied".into()));
             }
             // A network hiccup or a server error: keep asking until the code runs out.
@@ -326,7 +326,7 @@ impl Worker {
         let told = matches!(self.call(Method::Post, &oyenza::disconnect_url(), Some(&link.key), Some("{}"), TIMEOUT), Ok(r) if r.status == 200 || r.status == 401);
         if !told {
             // Keep the key only to tell the server later; it's no longer used for anything else.
-            crate::pwarn!("oyenza: couldn't reach Oyenza to disconnect; will retry");
+            crate::pwarn!("oyenza: couldn't reach ihz.app to disconnect; will retry");
             let _ = crate::services::secret::save(&crate::paths::oyenza_revoke_path(), &link.key);
             self.revoke = Some(link.key.clone());
             self.next_revoke = Instant::now() + REVOKE_EVERY;
@@ -342,7 +342,7 @@ impl Worker {
         if done {
             let _ = crate::services::secret::delete(&crate::paths::oyenza_revoke_path());
             self.revoke = None;
-            crate::pinfo!("oyenza: the earlier disconnect reached Oyenza");
+            crate::pinfo!("oyenza: the earlier disconnect reached ihz.app");
         } else {
             self.next_revoke = Instant::now() + REVOKE_EVERY;
         }

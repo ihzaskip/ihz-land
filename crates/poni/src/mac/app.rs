@@ -5118,10 +5118,10 @@ fn smoke_post() -> (bool, String) {
     });
     let json = "{\"app\":\"poni\",\"name\":\"Smoke Mac\"}";
     let answer = services::http::Client::new("OyenzaStudio smoke").and_then(|c| {
-        c.send(services::http::Method::Post, &format!("http://127.0.0.1:{port}/connect/start"), &[("Authorization", "Bearer oyzd_smoke")], Some(json), Duration::from_secs(5))
+        c.send(services::http::Method::Post, &format!("http://127.0.0.1:{port}/connect/start"), &[("Authorization", "Bearer ihzd_smoke")], Some(json), Duration::from_secs(5))
     });
     let seen = server.join().unwrap_or_default();
-    let arrived = seen.starts_with("POST /connect/start ") && seen.contains("Bearer oyzd_smoke") && seen.to_ascii_lowercase().contains("content-type: application/json") && seen.ends_with(json);
+    let arrived = seen.starts_with("POST /connect/start ") && seen.contains("Bearer ihzd_smoke") && seen.to_ascii_lowercase().contains("content-type: application/json") && seen.ends_with(json);
     match answer {
         Ok(r) => (arrived && r.status == 200 && r.body.contains("\"ok\":true"), format!("request arrived whole: {arrived}; answer {} {}", r.status, r.body)),
         Err(e) => (false, format!("request arrived whole: {arrived}; no answer ({e})")),

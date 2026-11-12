@@ -21,7 +21,6 @@
 //! Nothing here runs by itself: the coach moves only when the app calls it,
 //! and the app only does while the IELTS page is open or a session runs.
 
-use crate::oyenza::API;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::VecDeque;
@@ -30,7 +29,7 @@ use std::io::{self, BufWriter, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 
 /// Where the routes live on the API (`BASE` + `PATH` + `/me`, …).
-pub const BASE: &str = API;
+pub const BASE: &str = "https://api.oyenza.app";
 pub const PATH: &str = "/island/ielts";
 /// The answer's audio: 16 kHz mono 16-bit PCM in a WAV file.
 pub const RATE: u32 = 16_000;

@@ -575,7 +575,7 @@ mod cache_tests {
         let _com = MtaGuard::new();
         let client = Client::new("ihzland/test").expect("a client");
         let bodies = (0..2)
-            .map(|_| client.send(Method::Get, &url, &[("Authorization", "Bearer oyzd_test")], None, DEFAULT_TIMEOUT).expect("an answer").body)
+            .map(|_| client.send(Method::Get, &url, &[("Authorization", "Bearer ihzd_test")], None, DEFAULT_TIMEOUT).expect("an answer").body)
             .collect();
         (bodies, hits.load(Ordering::SeqCst))
     }
