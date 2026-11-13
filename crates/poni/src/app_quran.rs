@@ -28,7 +28,6 @@ impl App {
             QuranCmd::PlayPause => self.quran_play(),
             QuranCmd::Seek(ms) => {
                 self.st.quran.pos_ms = ms;
-                self.st.quran.pos_at = self.st.now;
                 self.quran.seek(ms);
                 self.quran_remember();
             }
@@ -40,7 +39,8 @@ impl App {
         let n = n.clamp(1, 114);
         let q = &mut self.st.quran;
         let list = q.surahs.is_empty();
-        if list || q.surah.as_ref().map(|s| s.n) != Some(n) {
+        let same_surah = q.surah.as_ref().is_some_and(|s| s.n == n);
+        if list || !same_surah {
             match read(n, list) {
                 Ok((l, s)) => {
                     if let Some(l) = l {
@@ -65,7 +65,9 @@ impl App {
         let Some(s) = self.st.quran.surah.as_ref() else { return };
         let k = (k as usize).clamp(1, s.ayat.len());
         self.st.quran.pos_ms = s.ayat[k - 1].start();
-        self.st.quran.pos_at = self.st.now;
+        if same_surah {
+            self.quran.seek(self.st.quran.pos_ms);
+        }
         self.quran_remember();
         if self.st.quran.playing {
             self.quran_play();
@@ -81,7 +83,6 @@ impl App {
                 pinfo!("quran: playing surah {n} from {ms} ms");
                 q.playing = true;
                 q.error = None;
-                q.pos_at = self.st.now;
             }
             Err(e) => {
                 pwarn!("quran: {e}");
@@ -116,7 +117,6 @@ impl App {
         }
         if let Some(ms) = self.quran.position_ms() {
             self.st.quran.pos_ms = ms;
-            self.st.quran.pos_at = self.st.now;
         }
     }
 
@@ -125,6 +125,10 @@ impl App {
         let n = self.st.quran.surah.as_ref().map_or(114, |s| s.n);
         if n < 114 && self.st.quran.playing {
             self.quran_open(n + 1, 1);
+            if self.st.quran.surah.as_ref().is_some_and(|s| s.n == n) {
+                self.quran.stop();
+                self.st.quran.playing = false;
+            }
         } else {
             self.quran.stop();
             self.st.quran.playing = false;

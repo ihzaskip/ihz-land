@@ -20,6 +20,7 @@ const TICKS_PER_MS: i64 = 10_000;
 #[derive(Default)]
 pub struct QuranPlayer {
     player: Option<MediaPlayer>,
+    generation: u64,
     /// The recording it holds.
     url: String,
 }
@@ -55,19 +56,25 @@ impl QuranPlayer {
             }));
         }
         player.SetSource(&source).map_err(|e| format!("can't open the recording ({e})"))?;
+        let generation = self.generation;
         let ended = sink.clone();
         let _ = player.MediaEnded(&TypedEventHandler::new(move |_, _| {
-            ended.send(AppEvent::QuranEnded);
+            ended.send(AppEvent::QuranEnded(generation));
             Ok(())
         }));
         let failed = sink.clone();
         let _ = player.MediaFailed(&TypedEventHandler::new(move |_, _| {
-            failed.send(AppEvent::QuranFailed);
+            failed.send(AppEvent::QuranFailed(generation));
             Ok(())
         }));
         self.player = Some(player);
         self.url = url.to_string();
         Ok(())
+    }
+
+    /// Ignore events queued by a recording the listener has since replaced.
+    pub fn is_current(&self, generation: u64) -> bool {
+        self.player.is_some() && generation == self.generation
     }
 
     pub fn pause(&self) {
@@ -95,6 +102,7 @@ impl QuranPlayer {
 
     /// Let the recording go (the add-on off, it failed, the last surah ended).
     pub fn stop(&mut self) {
+        self.generation = self.generation.wrapping_add(1);
         if let Some(p) = self.player.take() {
             let _ = p.Pause();
             let _ = p.Close();

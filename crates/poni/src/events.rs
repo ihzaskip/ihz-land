@@ -164,9 +164,9 @@ pub enum AppEvent {
     /// The adzan finished playing, or couldn't play on.
     AdzanEnded,
     /// The Quran page's surah finished playing (`services::quran`).
-    QuranEnded,
+    QuranEnded(u64),
     /// ...or couldn't play (no connection).
-    QuranFailed,
+    QuranFailed(u64),
     /// Start with Windows is on (true) or off, read for the Settings page.
     Autostart(bool),
     /// Free-form log line from a service thread.

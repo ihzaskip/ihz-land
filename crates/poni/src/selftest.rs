@@ -2667,6 +2667,9 @@ impl SelfTest {
                 let ready = steps >= MIN_STEPS && stable >= STABLE_STEPS && !blinking;
                 if ready || timed_out {
                     self.capture(app, Shot::Scene(i), !timed_out || settled, waited);
+                    if scene == Scene::Page(PageKind::Quran) && app.st.quran.surah.is_some() {
+                        self.check_quran(app);
+                    }
                     self.phase = self.next_phase(i + 1, now);
                 } else {
                     self.phase = Phase::Settle { i, since, steps, stable };
@@ -3390,6 +3393,60 @@ impl SelfTest {
             let on_it = app.island_body().center();
             app.selftest_hover(Some(on_it));
         }
+    }
+
+    fn check_quran(&mut self, app: &mut App) {
+        use poni_core::addons::{QURAN, QURAN_PACK_FILE};
+        // The picker opens another surah through the normal add-on path.
+        let pack = crate::services::addons::file_path(&QURAN, QURAN_PACK_FILE);
+        let copied = std::env::var_os("PONI_SELFTEST_QURAN").is_some_and(|dir| {
+            fs::create_dir_all(pack.parent().unwrap()).and_then(|_| fs::copy(PathBuf::from(dir).join(QURAN_PACK_FILE), &pack)).is_ok()
+        });
+        if !copied {
+            self.checks.push(check("quran-picker", false, "Couldn't stage the Quran pack"));
+            return;
+        }
+        let shot = |app: &mut App, name: &str| {
+            let (w, h, px, _) = app.selftest_capture();
+            png::save_pbgra(self.dir.join(name), w as u32, h as u32, &px).is_ok()
+        };
+        let Some(choose) = app.selftest_hit_center(wid("quran.choose")) else {
+            self.checks.push(check("quran-picker", false, "Choose surah is missing"));
+            return;
+        };
+        app.selftest_click(choose);
+        app.selftest_capture();
+        let picker = shot(app, "quran-picker.png");
+        if let Some(row) = app.selftest_hit_center(crate::ui::wid_n("quran.surah", 2)) {
+            app.selftest_click(row);
+            app.selftest_capture();
+        }
+        let selected = app.st.quran.surah.as_ref().is_some_and(|s| s.n == 2 && s.ayah_at(app.st.quran.pos_ms) == 1);
+        let ok = picker && selected && app.st.quran.picker.is_none();
+        crate::pinfo!("selftest: Quran picker selected Al-Baqarah at ayah 1: {selected}");
+        self.checks.push(check("quran-picker", ok, format!("Selected Al-Baqarah at ayah 1: {selected}")));
+
+        // Hold a timed word without opening a network stream in the smoke test.
+        app.st.pomodoro.run = RunState::Idle;
+        app.st.media = None;
+        if let Some(ms) = app.st.quran.surah.as_ref().and_then(|s| s.ayat[0].segs.get(1)).map(|seg| seg[1]) {
+            app.st.quran.pos_ms = ms;
+        }
+        app.st.quran.playing = true;
+        app.selftest_set_expanded(false);
+        for _ in 0..60 {
+            app.selftest_capture();
+            if app.selftest_settled() {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(16));
+        }
+        let captured = shot(app, "quran-collapsed.png");
+        let (mode, _) = app.selftest_mode();
+        let ok = captured && mode == Mode::Activity(crate::activities::Activity::Quran);
+        crate::pinfo!("selftest: Quran closed island mode: {mode:?}");
+        self.checks.push(check("quran-collapsed", ok, format!("Closed island mode: {mode:?}")));
+        app.st.quran = Default::default();
     }
 
     /// [`Self::apply`] or [`Self::apply_rest`], for what `shot` shows.

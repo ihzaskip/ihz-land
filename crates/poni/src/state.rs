@@ -477,21 +477,13 @@ pub struct QuranState {
     pub surahs: Vec<poni_core::quran::SurahInfo>,
     /// The surah on the page: its words, translation and timing.
     pub surah: Option<poni_core::quran::Surah>,
-    /// Where the recitation is (ms into the surah), and when that was read
-    /// (mono seconds).
+    /// Last reported position in the recording, in milliseconds.
     pub pos_ms: u32,
-    pub pos_at: f64,
     pub playing: bool,
+    /// The surah picker, with its search and first visible result.
+    pub picker: Option<(String, usize)>,
     /// Why the page can't read or play (said under the controls).
     pub error: Option<&'static str>,
-}
-
-impl QuranState {
-    /// Where the recitation is at `now`: on from the last reading while it plays.
-    pub fn ms_at(&self, now: f64) -> u32 {
-        let on = if self.playing { ((now - self.pos_at).max(0.0) * 1000.0) as u32 } else { 0 };
-        self.pos_ms.saturating_add(on)
-    }
 }
 
 /// The Prayer times add-on's live state.

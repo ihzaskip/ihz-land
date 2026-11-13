@@ -2505,8 +2505,16 @@ impl App {
             AppEvent::Notify(ev) => self.on_notify(ev),
             AppEvent::Usage(ev) => self.on_usage(ev),
             AppEvent::AdzanEnded => self.adzan_ended(),
-            AppEvent::QuranEnded => self.quran_ended(),
-            AppEvent::QuranFailed => self.quran_failed(),
+            AppEvent::QuranEnded(generation) => {
+                if self.quran.is_current(generation) {
+                    self.quran_ended();
+                }
+            }
+            AppEvent::QuranFailed(generation) => {
+                if self.quran.is_current(generation) {
+                    self.quran_failed();
+                }
+            }
             AppEvent::Download { id, line } => self.download_line(id, line),
             AppEvent::DownloadEnded { id, ok } => self.download_ended(id, ok),
             AppEvent::Kuis(got) => self.st.kuis.came(*got),
@@ -2582,6 +2590,8 @@ impl App {
             // A recording under way opens on its page: Pause and Stop are there.
             if self.st.rec_live() && self.st.record_on() {
                 self.st.page = PageKind::Record;
+            } else if self.mode == Mode::Activity(activities::Activity::Quran) {
+                self.st.page = PageKind::Quran;
             } else if self.st.page == PageKind::Record && !self.st.record_on() {
                 self.st.page = pages::first_tab(&self.st);
             }
@@ -2610,6 +2620,7 @@ impl App {
     fn collapse(&mut self) {
         if self.expanded {
             self.expanded = false;
+            self.st.quran.picker = None;
             if self.text_focus {
                 self.blur_text();
             }
@@ -3853,7 +3864,7 @@ impl App {
         // pills for their own changes; nobody sees those while the session is
         // locked or the display is off, so they rest then (the lock and
         // display events ask for a frame, which picks them up again).
-        let singing = self.mode == Mode::Activity(activities::Activity::Media);
+        let singing = matches!(self.mode, Mode::Activity(activities::Activity::Media | activities::Activity::Quran));
         let watched = visible && !((pill::on(self.st.settings.theme) || singing) && (self.locked || self.display_off));
         if let Some(t) = activities::next_wake(&self.mode, &self.st).filter(|_| watched) {
             consider(t);
@@ -3868,7 +3879,8 @@ impl App {
             // page's countdown ticks every second); the lock and display
             // events ask for a frame, which picks them up again.
             let away = self.locked || self.display_off;
-            if let Some(t) = pages::next_wake(p, &self.st).filter(|_| visible && !away) {
+            let reading = p != PageKind::Quran || self.st.quran.picker.is_none();
+            if let Some(t) = pages::next_wake(p, &self.st).filter(|_| visible && !away && reading) {
                 consider(t + 0.005);
             }
         }
@@ -4351,6 +4363,7 @@ impl App {
 
     fn set_page(&mut self, p: PageKind) {
         if p != self.st.page {
+            self.st.quran.picker = None;
             self.st.page = p;
             // Settings is never where the island opens next time.
             if p != PageKind::Settings {

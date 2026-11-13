@@ -515,7 +515,7 @@ pub fn blocks(section: Section, st: &AppState) -> Vec<Block> {
                     item(Key::LyricsOffset, "Timing", Some("Shift every line earlier or later"), Ctl::Stepper(offset_text(s.lyrics_offset_ms))),
                 ],
             ),
-            Block::Group(Some("Closed island"), vec![switch(Key::MediaActivity, "Show what's playing", Some("The song and its cover on the closed island"), s.show_media_activity)]),
+            Block::Group(Some("Closed island"), vec![switch(Key::MediaActivity, "Show what's playing", Some("Music or Quran recitation on the closed island"), s.show_media_activity)]),
         ],
         Section::Popups => vec![Block::Group(
             Some("The island shows a pop-up for"),

@@ -24,6 +24,7 @@ use poni_core::sysmon::fmt_pct;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Activity {
     Media,
+    Quran,
     Timer,
     MediaTimer,
     /// Prayer times: the minutes before the next prayer.
@@ -109,6 +110,8 @@ const RECORDING_LONG_W: f32 = 112.0;
 /// width); the long timer's while the count sits beside the ring.
 const DOWNLOAD_W: f32 = 96.0;
 const DOWNLOAD_MANY_W: f32 = 112.0;
+/// A stable width keeps the island still as the recitation moves across lines.
+const QURAN_W: f32 = 340.0;
 /// The capsule under the download count.
 const COUNT_FILL: Color = Color::white(0.16);
 /// A meeting being taken down: Oyen's head, the dot and the time; then
@@ -124,6 +127,7 @@ pub fn content_key(m: &Mode) -> u32 {
         Mode::Activity(Activity::Game) => 6,
         Mode::Activity(Activity::Recording) => 7,
         Mode::Activity(Activity::Download) => 8,
+        Mode::Activity(Activity::Quran) => 9,
         Mode::Hud(t) => 10 + *t as u32,
         Mode::Notice => 20,
         Mode::Expanded(_) => 30,
@@ -178,6 +182,9 @@ pub fn current_activity(st: &AppState) -> Option<Activity> {
     let media = st.settings.show_media_activity
         && st.media.as_ref().is_some_and(|m| m.is_playing() || media_grace_end(st).is_some_and(|end| st.now < end));
     let timer = st.pomodoro.is_active();
+    if st.settings.show_media_activity && st.quran.playing && !timer {
+        return Some(Activity::Quran);
+    }
     match (media, timer) {
         (true, true) => Some(Activity::MediaTimer),
         (true, false) => Some(Activity::Media),
@@ -292,6 +299,7 @@ pub fn geom(m: &Mode, st: &AppState) -> Geom {
             Geom::new(if long { 112.0 } else { 96.0 }, 32.0, 15.0)
         }
         Mode::Activity(Activity::MediaTimer) => Geom::new(132.0, 32.0, 15.0),
+        Mode::Activity(Activity::Quran) => Geom::new(QURAN_W, 42.0, 20.0),
         Mode::Activity(Activity::Prayer) => Geom::new(PRAYER_W, 32.0, 15.0),
         Mode::Activity(Activity::Game) => Geom::new(if game_temp(st).is_some() { GAME_W } else { GAME_NO_TEMP_W }, 32.0, 15.0),
         Mode::Activity(Activity::Recording) => Geom::new(recording_w(st), 32.0, 15.0),
@@ -361,6 +369,11 @@ pub fn next_wake(m: &Mode, st: &AppState) -> Option<f64> {
         // on battery saver, and Oyen's when his notes are gone.
         if let Some(t) = crate::pill::lyric::next_wake(st) {
             consider(t);
+        }
+    }
+    if *m == Mode::Activity(Activity::Quran) {
+        if let Some(t) = pages::quran::next_wake(st) {
+            consider(t + 0.005);
         }
     }
     if let Some(t) = crate::pill::next_wake(m, st) {
@@ -590,6 +603,10 @@ fn draw_activity(ui: &mut Ui, st: &mut AppState, a: Activity, body: Rect) {
     let playing = st.media.as_ref().is_some_and(|m| m.is_playing());
     match a {
         Activity::Media => draw_music(ui, st, body, true),
+        Activity::Quran => {
+            ui.c.icon(Icon::Book, Rect::new(body.x + 14.0, cy - 8.0, 16.0, 16.0), st.accent);
+            pages::quran::draw_ayah(ui, st, Rect::new(body.x + 40.0, body.y, body.w - 54.0, body.h), 20.0);
+        }
         Activity::Timer => {
             // Ring (with the phase glyph) on the left, digits right after it.
             let p = &st.pomodoro;
@@ -999,6 +1016,18 @@ mod tests {
     use poni_core::settings::Settings;
     use poni_core::store::Store;
     use poni_core::timeline::Timeline;
+
+    #[test]
+    fn quran_recitation_has_its_own_collapsed_activity() {
+        let mut st = AppState::new(Settings::default(), Store::default());
+        st.quran.playing = true;
+        assert_eq!(collapsed_mode(&st), Mode::Activity(Activity::Quran));
+        st.settings.show_media_activity = false;
+        assert_eq!(collapsed_mode(&st), Mode::Idle);
+        st.settings.show_media_activity = true;
+        st.quran.playing = false;
+        assert_eq!(collapsed_mode(&st), Mode::Idle);
+    }
 
     /// Music playing 12 s into a song, with these lyrics found for it.
     fn playing(lrc: Option<&str>) -> AppState {

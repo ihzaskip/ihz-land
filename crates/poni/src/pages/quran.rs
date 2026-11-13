@@ -4,18 +4,17 @@
 //! from the Quran add-on (`poni_core::quran`), read by the app (`app_quran`)
 //! when the page asks; the recitation streams only while it plays.
 //!
-//! Nothing runs for it while it is closed. Open and playing, it draws when
-//! the word on screen changes ([`next_wake`]), not every frame. The mouse
-//! wheel over the surah's tile and name moves to another surah.
+//! The page and collapsed pill update at word boundaries while playing
+//! ([`next_wake`]). The picker browses the surah list already in the pack.
 
 use super::media::{play_button, side_button};
 use crate::commands::{Command, QuranCmd};
 use crate::gfx::TextStyle;
 use crate::icons::Icon;
 use crate::state::AppState;
-use crate::ui::{wid, Ui};
+use crate::ui::{wid, wid_n, PillStyle, Ui, PILL_SMALL};
 use poni_core::addons::{Status, QURAN};
-use poni_core::geom::{palette, Point, Rect};
+use poni_core::geom::{palette, Color, Point, Rect};
 
 const HEIGHT: f32 = 236.0;
 /// The surah's tile (its Arabic name), where Music has the cover.
@@ -43,14 +42,34 @@ pub fn height(_st: &AppState) -> f32 {
     HEIGHT
 }
 
-/// While it plays: when the word on screen next changes (the app asks only
-/// while the page is open).
+/// While the ayah is visible and playing: when its word or progress changes.
 pub fn next_wake(st: &AppState) -> Option<f64> {
     let q = &st.quran;
-    let s = q.surah.as_ref().filter(|_| q.playing)?;
-    let ms = q.ms_at(st.now);
-    let next = s.next_change(ms).unwrap_or(ms + WAKE_MS.1);
-    Some(st.now + f64::from((next - ms).clamp(WAKE_MS.0, WAKE_MS.1)) / 1000.0)
+    let s = q.surah.as_ref().filter(|_| q.playing && !st.power.saver)?;
+    let ms = q.pos_ms;
+    let wait = s.next_change(ms).map_or(WAKE_MS.1, |next| next - ms);
+    Some(st.now + f64::from(wait.clamp(WAKE_MS.0, WAKE_MS.1)) / 1000.0)
+}
+
+/// Draw the current ayah in reading order, keeping its recited word visible.
+pub fn draw_ayah(ui: &mut Ui, st: &AppState, rect: Rect, size: f32) {
+    let q = &st.quran;
+    let Some(s) = &q.surah else { return };
+    let ms = q.pos_ms;
+    let ayah = &s.ayat[s.ayah_at(ms) - 1];
+    let text = ayah.text();
+    let mut spans = Vec::new();
+    let len = text.encode_utf16().count() as u32;
+    if let Some((at, word_len)) = ayah.word_span(ayah.word_at(ms)) {
+        spans.push((at, word_len, st.accent));
+        let after = at + word_len;
+        if after < len {
+            spans.push((after, len - after, palette::TEXT_DIM));
+        }
+    } else {
+        spans.push((0, len, palette::TEXT_DIM));
+    }
+    ui.c.quran_text(&text, rect, size, palette::TEXT, &spans);
 }
 
 pub fn draw(ui: &mut Ui, st: &mut AppState, area: Rect) {
@@ -68,13 +87,15 @@ pub fn draw(ui: &mut Ui, st: &mut AppState, area: Rect) {
         super::empty_state(ui, page, Icon::Book, "Quran", st.quran.error.unwrap_or("Opening\u{2026}"));
         return;
     };
+    if st.quran.picker.is_some() {
+        picker(ui, st, page, s.n);
+        return;
+    }
     let (q, accent) = (&st.quran, st.accent);
     let n = s.n;
-    let ms = q.ms_at(st.now);
+    let ms = q.pos_ms;
     let k = s.ayah_at(ms);
     let ayah = &s.ayat[k - 1];
-    // Before its first word (just opened, or skipped to), nothing is lit.
-    let word = if ms > ayah.start() { ayah.word_at(ms) } else { 0 };
     let mut cmds = Vec::new();
 
     // The surah's tile and name; the wheel over them moves surah.
@@ -94,7 +115,17 @@ pub fn draw(ui: &mut Ui, st: &mut AppState, area: Rect) {
         ui.c.text(&i.arab, tile, &TextStyle::new(20.0).color(accent).center());
     }
     let name = info.map_or_else(|| format!("Surah {n}"), |i| i.nama.clone());
-    ui.c.text(&format!("{name} \u{b7} Ayat {k}/{}", s.ayat.len()), Rect::new(mid.x, y0 + TITLE_Y, mid.w, TITLE_H), &TextStyle::headline());
+    let label = "Choose surah";
+    let pick_w = ui.pill_width(label, false, true);
+    let pick = Rect::new(mid.right() - pick_w, y0 + TITLE_Y, pick_w, PILL_SMALL);
+    let title = Rect::new(mid.x, y0 + TITLE_Y, (pick.x - mid.x - 8.0).max(0.0), TITLE_H);
+    ui.c.text(&format!("{name} \u{b7} Ayat {k}/{}", s.ayat.len()), title, &TextStyle::headline());
+    if ui.pill(wid("quran.choose"), pick, label, None, PillStyle::Utility).clicked {
+        st.quran.picker = Some((String::new(), usize::from(n - 1)));
+        ui.focus_text(wid("quran.search"), 0);
+        ui.request_repaint();
+        return;
+    }
     let (line, color) = match q.error {
         Some(e) => (e.to_string(), palette::ORANGE),
         None => (info.map_or(RECITER.to_string(), |i| format!("{} \u{b7} {RECITER}", i.arti)), palette::TEXT_DIM),
@@ -129,13 +160,7 @@ pub fn draw(ui: &mut Ui, st: &mut AppState, area: Rect) {
 
     // The ayah: the word being recited in the accent, the words still to
     // come dimmer, the ones said in full white.
-    let text = ayah.text();
-    let mut spans = Vec::new();
-    if let Some((at, len)) = ayah.word_span(word) {
-        spans.push((at, len, accent));
-        spans.push((at + len, (text.encode_utf16().count() as u32).saturating_sub(at + len), palette::TEXT_DIM));
-    }
-    ui.c.quran_text(&text, Rect::new(area.x, y0 + ARABIC_Y, area.w, ARABIC_H), ARABIC_SIZE, palette::TEXT, &spans);
+    draw_ayah(ui, st, Rect::new(area.x, y0 + ARABIC_Y, area.w, ARABIC_H), ARABIC_SIZE);
 
     // Its meaning, smaller when long; what still doesn't fit is cut.
     let meaning = Rect::new(area.x, y0 + MEANING_Y, area.w, MEANING_H);
@@ -152,5 +177,66 @@ pub fn draw(ui: &mut Ui, st: &mut AppState, area: Rect) {
     }
     for c in cmds {
         st.cmd(Command::Quran(c));
+    }
+}
+
+fn picker(ui: &mut Ui, st: &mut AppState, area: Rect, current: u16) {
+    const ROWS: usize = 5;
+    const ROW_H: f32 = 32.0;
+    let Some((query, first)) = &mut st.quran.picker else { return };
+    let done_w = ui.pill_width("Done", false, true);
+    let done = Rect::new(area.right() - done_w, area.y, done_w, PILL_SMALL);
+    let search = Rect::new(area.x, area.y, area.w - done_w - 8.0, PILL_SMALL);
+    let resp = ui.text_input_row(wid("quran.search"), search, query, "Surah name or number", 40, st.accent, Some(Icon::Book));
+    if resp.changed {
+        *first = 0;
+    }
+    let close = ui.pill(wid("quran.done"), done, "Done", None, PillStyle::Utility).clicked || resp.cancelled;
+    let query = query.trim().to_lowercase();
+    let number = query.parse::<u16>().ok();
+    let matches: Vec<_> = st.quran.surahs.iter().filter(|s| {
+        query.is_empty() || number == Some(s.id) || s.nama.to_lowercase().contains(&query)
+            || s.arti.to_lowercase().contains(&query) || s.arab.contains(&query)
+    }).collect();
+    let list = Rect::new(area.x, area.y + 32.0, area.w, ROWS as f32 * ROW_H);
+    let wheel = ui.wheel_in(list);
+    let max_first = matches.len().saturating_sub(ROWS);
+    *first = first.saturating_add_signed(-(wheel as isize)).min(max_first);
+    let mut selected = if resp.submitted { matches.get(*first).map(|s| s.id) } else { None };
+    for (row, s) in matches.iter().skip(*first).take(ROWS).enumerate() {
+        let r = Rect::new(list.x, list.y + row as f32 * ROW_H, list.w, ROW_H);
+        let b = ui.button(wid_n("quran.surah", s.id.into()), r);
+        if b.hovered || b.pressed || s.id == current {
+            ui.c.fill_rrect(r, 8.0, if s.id == current { st.accent.mul_alpha(0.16) } else { Color::white(0.08) });
+        }
+        ui.c.text(&format!("{}  {}", s.id, s.nama), Rect::new(r.x + 8.0, r.y, r.w * 0.65 - 12.0, r.h), &TextStyle::body());
+        ui.c.quran_text(&s.arab, Rect::new(r.x + r.w * 0.65, r.y, r.w * 0.35 - 8.0, r.h), 16.0, palette::TEXT_DIM, &[]);
+        if b.clicked {
+            selected = Some(s.id);
+        }
+    }
+    if matches.is_empty() {
+        ui.c.text("No matching surahs", list, &TextStyle::body().color(palette::TEXT_DIM).center());
+    }
+    let mut x = area.right();
+    for (id, label, enabled, offset) in [
+        ("quran.more", "Next", *first < max_first, first.saturating_add(ROWS).min(max_first)),
+        ("quran.back", "Previous", *first > 0, first.saturating_sub(ROWS)),
+    ] {
+        let w = ui.pill_width(label, false, true);
+        x -= w;
+        if enabled && ui.pill(wid(id), Rect::new(x, list.bottom() + 8.0, w, PILL_SMALL), label, None, PillStyle::Utility).clicked {
+            *first = offset;
+            ui.request_repaint();
+        }
+        x -= 8.0;
+    }
+    if close || selected.is_some() {
+        st.quran.picker = None;
+        ui.blur();
+        ui.request_repaint();
+    }
+    if let Some(surah) = selected {
+        st.cmd(Command::Quran(QuranCmd::Open { surah, ayah: 1 }));
     }
 }
