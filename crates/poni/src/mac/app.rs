@@ -2962,7 +2962,7 @@ impl App {
                 Command::Usage(c) => self.usage_cmd(c),
                 Command::Ielts(c) => self.ielts_cmd(c),
                 // Kuis is Windows only (`AppState::kuis_on`).
-                Command::KuisNext => {}
+                Command::KuisNext | Command::ExtractText | Command::CopyText(_) => {}
             }
         }
         self.sync_phone_offer();

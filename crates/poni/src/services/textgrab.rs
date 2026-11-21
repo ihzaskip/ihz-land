@@ -24,13 +24,15 @@ use windows::Win32::UI::WindowsAndMessaging::*;
 /// One grab at a time: the hotkey pressed again mid-grab does nothing.
 static BUSY: AtomicBool = AtomicBool::new(false);
 
-/// Freeze the screen and let a box be drawn; the text comes back as
-/// `AppEvent::TextGrab` (nothing comes back when cancelled).
-pub fn start(sink: EventSink) {
+/// Freeze the screen after `delay_ms` (the island closing out of the way)
+/// and let a box be drawn; the text comes back as `AppEvent::TextGrab`
+/// (nothing comes back when cancelled).
+pub fn start(sink: EventSink, delay_ms: u64) {
     if BUSY.swap(true, Ordering::SeqCst) {
         return;
     }
     std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(delay_ms));
         let got = unsafe { grab() };
         BUSY.store(false, Ordering::SeqCst);
         if let Some(got) = got {

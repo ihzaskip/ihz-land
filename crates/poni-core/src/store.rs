@@ -49,6 +49,8 @@ pub struct Store {
     /// at least once, so it reads the Record page's links: Screen recorder
     /// shows from then on. 1.0.0 never writes, and its Record would do nothing.
     pub recorder_island: bool,
+    /// The Text page's last texts read (Text extractor), newest first.
+    pub text_history: Vec<String>,
 }
 
 impl Default for Store {
@@ -63,6 +65,7 @@ impl Default for Store {
             script: crate::script::Script::default(),
             caffeine: crate::caffeine::Log::default(),
             recorder_island: false,
+            text_history: Vec::new(),
         }
     }
 }

@@ -973,6 +973,9 @@ enum Scene {
     RecordLive,
     RecordActivity,
     RecordPaused,
+    /// The built-in screen recorder's pill on the closed island (a click on
+    /// it stops the recording).
+    RecordBuiltin,
     /// The Add-ons page with the recorder installed: Screen recorder's row
     /// (a line each, the window no taller).
     AddonsRecorder,
@@ -1165,7 +1168,7 @@ const SAMPLE_SCRIPT: &str = "Hi everyone, this one takes two minutes. Today I'll
 Drop any file on the island and it waits on the Shelf. Press the phone button, scan the code, and the file is on your phone. \
 No cable, no account, nothing to install on the phone.\n\nThat's it. Thanks for watching.";
 
-const SCENES: [Scene; 114] = [
+const SCENES: [Scene; 116] = [
     Scene::IdleClock,
     Scene::IdleEyes,
     Scene::Media,
@@ -1263,6 +1266,7 @@ const SCENES: [Scene; 114] = [
     Scene::RecordLive,
     Scene::RecordActivity,
     Scene::RecordPaused,
+    Scene::RecordBuiltin,
     Scene::AddonsRecorder,
     // The Downloader: the Downloads page with a download running, one
     // waiting, one done and one failed, then empty; the Add-ons page with
@@ -1309,6 +1313,8 @@ const SCENES: [Scene; 114] = [
     // crates/poni-core/data/kuis-sample.json); without one, the page waits.
     Scene::Page(PageKind::Kuis),
     Scene::KuisAnswered,
+    // The Text extractor add-on: Extract text, the shortcut and made-up texts read.
+    Scene::Page(PageKind::Text),
     // Settings' tabs row with two of the island's pages off the row, then in
     // the Store copy, with Notifications' chip.
     Scene::SettingsTabs,
@@ -1408,6 +1414,7 @@ impl Scene {
             Scene::RecordLive => "page-record-live".into(),
             Scene::RecordActivity => "record-activity".into(),
             Scene::RecordPaused => "record-paused-activity".into(),
+            Scene::RecordBuiltin => "record-builtin-activity".into(),
             Scene::AddonsRecorder => "page-addons-recorder".into(),
             Scene::DownloadsEmpty => "page-downloads-empty".into(),
             Scene::AddonsDownloader => "page-addons-downloader".into(),
@@ -1519,6 +1526,9 @@ impl Scene {
             Scene::RecordLive => (Phase::Recording, 42_000),
             Scene::RecordActivity => (Phase::Recording, 754_000),
             Scene::RecordPaused => (Phase::Paused, 754_000),
+            Scene::RecordBuiltin => {
+                return crate::state::RecView { phase: Some(Phase::Recording), elapsed_ms: 94_000, at: now + 3600.0, builtin: true, ..Default::default() };
+            }
             _ => return crate::state::RecView::default(),
         };
         // Sent "later" than now, so the time doesn't count on while the scene settles.
@@ -3316,7 +3326,14 @@ impl SelfTest {
         let ielts = scene.page() == Some(PageKind::Ielts);
         let caffeine = scene.page() == Some(PageKind::Caffeine);
         let kuis = scene.page() == Some(PageKind::Kuis);
-        for (id, on) in [(SYSTEM.id, system), (IELTS.id, ielts), (CAFFEINE.id, caffeine), (poni_core::addons::KUIS.id, kuis)] {
+        let text = scene.page() == Some(PageKind::Text);
+        st.store.text_history = if text {
+            ["Meeting moved to Thursday 14.00, room 3B", "INV-2026-0412
+Total: Rp 1.250.000", "https://ihz.app/kuis"].map(String::from).to_vec()
+        } else {
+            Vec::new()
+        };
+        for (id, on) in [(SYSTEM.id, system), (IELTS.id, ielts), (CAFFEINE.id, caffeine), (poni_core::addons::KUIS.id, kuis), (poni_core::addons::TEXT_EXTRACTOR.id, text)] {
             st.settings.set_addon(id, on);
             st.addons.insert(id, if on { AddonStatus::Ready } else { AddonStatus::Off });
         }
@@ -3904,7 +3921,7 @@ impl SelfTest {
             let note = if wine { " (Wine, which can't leave a window out)" } else { "" };
             checks.push(check("script-hidden-from-capture", hidden == can || (wine && !hidden), format!("display affinity: {said}, Windows build {build:?}{note}")));
         }
-        if matches!(scene, Scene::RecordActivity | Scene::RecordPaused) {
+        if matches!(scene, Scene::RecordActivity | Scene::RecordPaused | Scene::RecordBuiltin) {
             // The recording rests on the closed island, ahead of everything else.
             let (mode, _) = app.selftest_mode();
             let want = Mode::Activity(crate::activities::Activity::Recording);

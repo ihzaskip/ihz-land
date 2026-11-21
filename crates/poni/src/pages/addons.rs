@@ -107,6 +107,7 @@ fn icon(a: &Addon) -> Icon {
         "downloader" => Icon::Download,
         "ielts" => Icon::Mic,
         "ai" => Icon::Ai,
+        "text" => Icon::Area,
         _ => Icon::Addons,
     }
 }

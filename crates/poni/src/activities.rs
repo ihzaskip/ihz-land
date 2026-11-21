@@ -168,7 +168,7 @@ pub fn prayer_countdown(st: &AppState) -> Option<(poni_core::prayer::Prayer, i64
 
 pub fn current_activity(st: &AppState) -> Option<Activity> {
     // A recording comes first: its Stop must be one click away.
-    if st.rec_live() && st.record_on() {
+    if st.rec_shown() {
         return Some(Activity::Recording);
     }
     // The few minutes before a prayer come next: they don't come back.
@@ -206,7 +206,7 @@ pub fn collapsed_mode(st: &AppState) -> Mode {
     // A notice that stays (a new version's) waits under a volume or
     // brightness change, a game's readout and a recording (its Stop stays
     // one click away), and shows again after.
-    let recording = st.rec_live() && st.record_on();
+    let recording = st.rec_shown();
     let waits = st.notice.as_ref().is_some_and(|n| n.stays()) && (st.hud.is_some() || st.game.active || recording);
     if st.notice.is_some() && !waits {
         Mode::Notice
@@ -683,7 +683,12 @@ fn draw_recording(ui: &mut Ui, st: &AppState, body: Rect) {
 /// while it starts or saves. Shared with the notch's left ear.
 pub(crate) fn recording_mark(ui: &mut Ui, st: &AppState, c: Point) {
     match st.rec.phase {
-        Some(poni_core::recorder::Phase::Recording) => ui.c.fill_circle(c, 5.0, palette::RED),
+        // It beats with the seconds the time already repaints for: bright on
+        // even ones, dim on odd ones, so the pulse costs no frame of its own.
+        Some(poni_core::recorder::Phase::Recording) => {
+            let beat = st.rec_elapsed() as u64 % 2 == 0;
+            ui.c.fill_circle(c, if beat { 5.0 } else { 4.2 }, if beat { palette::RED } else { palette::RED.with_alpha(0.45) });
+        }
         Some(poni_core::recorder::Phase::Paused) => ui.c.icon(Icon::Pause, Rect::from_center(c, 11.0, 11.0), palette::TEXT),
         _ => ui.c.stroke_circle(c, 4.4, palette::TEXT_DIM, 1.4),
     }

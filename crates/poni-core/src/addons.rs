@@ -360,8 +360,20 @@ pub const KUIS: Addon = Addon {
     files: &[],
 };
 
+/// Text extractor: the Text page (Extract text, the shortcut, the last texts
+/// read). Windows' own OCR does the reading, so there is nothing to download.
+/// Alt+Shift+T and the menu's Extract text work with the add-on off too.
+pub const TEXT_EXTRACTOR: Addon = Addon {
+    id: "text",
+    title: "Text extractor",
+    blurb: "Copy the text in any part of the screen, as in PowerToys.",
+    mac_blurb: Some("Windows only for now."),
+    tag: "",
+    files: &[],
+};
+
 /// Every add-on, in the order the Add-ons page lists them.
-pub const ALL: [&Addon; 11] = [&PRAYER_TIMES, &QURAN, &JAPANESE_READINGS, &SCRIPT_READER, &SYSTEM, &CAFFEINE, &SCREEN_RECORDER, &AI_USAGE, &IELTS, &KUIS, &DOWNLOADER];
+pub const ALL: [&Addon; 12] = [&PRAYER_TIMES, &QURAN, &JAPANESE_READINGS, &SCRIPT_READER, &SYSTEM, &CAFFEINE, &SCREEN_RECORDER, &AI_USAGE, &IELTS, &KUIS, &TEXT_EXTRACTOR, &DOWNLOADER];
 
 /// Whether Japanese readings switch themselves on for a song whose kanji went
 /// unread for want of them (`wants`): only while the person reads
@@ -608,7 +620,7 @@ mod tests {
     fn add_ons_are_listed_in_order_each_with_its_own_id() {
         // The Add-ons page's order.
         let ids: Vec<&str> = ALL.iter().map(|a| a.id).collect();
-        assert_eq!(ids, ["sholat", "quran", "ja", "script", "system", "caffeine", "recorder", "ai", "ielts", "kuis", "downloader"]);
+        assert_eq!(ids, ["sholat", "quran", "ja", "script", "system", "caffeine", "recorder", "ai", "ielts", "kuis", "text", "downloader"]);
         for (i, a) in ALL.iter().enumerate() {
             // The key in settings.json and the folder's name.
             assert!(!a.id.is_empty() && a.id.bytes().all(|b| b.is_ascii_lowercase()), "{}", a.id);

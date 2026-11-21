@@ -1095,6 +1095,11 @@ impl App {
                 None => {}
             }
         }
+        // The built-in recorder's pill: the click stops it.
+        if !shown && self.mode == Mode::Activity(activities::Activity::Recording) && self.st.rec.builtin {
+            self.toggle_screen_rec();
+            return;
+        }
         // The download pill opens on its page.
         if self.mode == Mode::Activity(activities::Activity::Download) {
             self.st.page = PageKind::Downloads;
@@ -1507,7 +1512,7 @@ impl App {
                 Some(LRESULT(0))
             }
             WM_HOTKEY if wp.0 == HOTKEY_TEXT as usize => {
-                services::textgrab::start(self.sink.clone());
+                services::textgrab::start(self.sink.clone(), 0);
                 Some(LRESULT(0))
             }
             WM_HOTKEY if wp.0 == HOTKEY_REC as usize => {
@@ -1767,6 +1772,9 @@ impl App {
                     // pointer so the pill can be clicked (a click on the rest
                     // of the notice still opens its page). The dwell stays
                     // armed: the next movement restarts it.
+                } else if self.mode == Mode::Activity(activities::Activity::Recording) && self.st.rec.builtin {
+                    // Nor the built-in recorder's pill: a click on it stops
+                    // the recording, so it stays put under the pointer.
                 } else if self.input.mouse.and_then(|p| self.hit_at(p)).is_some_and(|h| h.id == wid(activities::PRAYER_OK_ID)) {
                     // So does the prayer countdown under a pointer resting on
                     // its OK (resting on the rest of it still opens).
@@ -2207,7 +2215,7 @@ impl App {
             TogglePinned => self.st.pinned = !self.st.pinned,
             CentreIsland => s.island_x = None,
             RecordScreen => crate::services::recorder::record_screen(self.hwnd),
-            ExtractText => services::textgrab::start(self.sink.clone()),
+            ExtractText => services::textgrab::start(self.sink.clone(), 0),
             ToggleScreenRec => self.toggle_screen_rec(),
             // The next recording's; one under way keeps what it started with.
             ToggleRecordMic => s.record.microphone = !s.record.microphone,
@@ -2581,6 +2589,13 @@ impl App {
                     services::clipboard::set_text(self.hwnd, &text);
                     let first = text.lines().next().unwrap_or_default().to_string();
                     self.st.notify(Icon::Clipboard, palette::BLUE, "Text copied", first, 4.0, None);
+                    // The Text page's history: newest first, the same text once.
+                    let kept: String = text.chars().take(pages::text::KEEP_CHARS).collect();
+                    let h = &mut self.st.store.text_history;
+                    h.retain(|t| *t != kept);
+                    h.insert(0, kept);
+                    h.truncate(pages::text::HISTORY);
+                    self.st.save();
                 }
                 Ok(_) => self.st.notify(Icon::Clipboard, palette::ORANGE, "No text found", "Draw the box around some text", 4.0, None),
                 Err(why) => self.st.notify(Icon::Clipboard, palette::ORANGE, "Couldn't read text", why, 6.0, None),
@@ -2636,7 +2651,7 @@ impl App {
             }
             self.check_recorder_alive();
             // A recording under way opens on its page: Pause and Stop are there.
-            if self.st.rec_live() && self.st.record_on() {
+            if self.st.rec_live() && self.st.record_on() && !self.st.rec.builtin {
                 self.st.page = PageKind::Record;
             } else if self.mode == Mode::Activity(activities::Activity::Quran) {
                 self.st.page = PageKind::Quran;
@@ -3028,6 +3043,7 @@ impl App {
     fn toggle_screen_rec(&mut self) {
         self.st.now = clock::mono();
         if let Some(r) = self.screen_rec.take() {
+            self.st.rec = crate::state::RecView::default();
             match r.stop() {
                 Ok(path) => {
                     let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
@@ -3048,7 +3064,8 @@ impl App {
                 Ok(r) => {
                     pinfo!("screen recorder: recording to {}", r.path().display());
                     self.screen_rec = Some(r);
-                    self.st.notify(Icon::Record, palette::RED, "Recording", "Alt+Shift+R stops", 3.0, None);
+                    self.st.rec = crate::state::RecView { phase: Some(poni_core::recorder::Phase::Recording), at: self.st.now, builtin: true, ..Default::default() };
+                    self.st.notify(Icon::Record, palette::RED, "Recording", "Click the red dot to stop", 3.0, None);
                 }
                 Err(e) => {
                     pwarn!("screen recorder: couldn't start ({e})");
@@ -3463,6 +3480,7 @@ impl App {
             PageKind::Notifications => !self.st.notifications_on(),
             PageKind::Ielts => !self.st.ielts_on(),
             PageKind::Kuis => !self.st.kuis_on(),
+            PageKind::Text => !self.st.text_on(),
             PageKind::Ai => !self.st.ai_usage_on(),
             _ => false,
         };
@@ -3641,7 +3659,7 @@ impl App {
             && matches!(self.gfx.renderer(), crate::gfx::Renderer::Gpu { .. });
         self.glass.sync(copy_on, self.hwnd, &self.sink, self.monitor.handle, window_px, &mut self.gfx);
         self.sync_script_capture(self.st.page == PageKind::Script && (self.expanded || !self.island.settled()));
-        self.sync_recording_capture((self.st.rec_live() && self.st.record_on()) || self.screen_rec.is_some());
+        self.sync_recording_capture(self.st.rec_shown());
         let mut glass_moving = false;
         let glass = if glass_theme && !hidden_idle {
             let small = !matches!(mode, Mode::Expanded(_));
@@ -3940,7 +3958,7 @@ impl App {
         // A recording's time, on the closed island and its page: a frame for
         // each new second while it records (none while paused), resting while
         // nobody is at the PC (the lock and display events ask for a frame).
-        let watched_rec = visible && !self.locked && !self.display_off && self.st.record_on();
+        let watched_rec = visible && !self.locked && !self.display_off && (self.st.record_on() || self.st.rec.builtin);
         if let Some(b) = self.st.rec_next_second().filter(|_| watched_rec) {
             consider(now + b + 0.005);
         }
@@ -4584,6 +4602,17 @@ impl App {
                 Command::Usage(c) => self.usage_cmd(c),
                 Command::Ielts(c) => self.ielts_cmd(c),
                 // Nothing leaves the PC in the self-test: its pictures are seeded.
+                Command::ExtractText => {
+                    // The island closes first, so the frozen screen is the one under it.
+                    self.collapse();
+                    services::textgrab::start(self.sink.clone(), 350);
+                }
+                Command::CopyText(i) => {
+                    if let Some(text) = self.st.store.text_history.get(i).cloned() {
+                        services::clipboard::set_text(self.hwnd, &text);
+                        self.st.notify(Icon::Clipboard, palette::BLUE, "Copied again", text.lines().next().unwrap_or_default().to_string(), 3.0, None);
+                    }
+                }
                 Command::KuisNext => {
                     if self.selftest.is_none() && !self.st.kuis.loading {
                         self.st.kuis.loading = true;

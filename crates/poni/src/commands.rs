@@ -204,6 +204,10 @@ pub enum Command {
     /// The Kuis page wants a question: on opening without one, Soal
     /// berikutnya, Coba lagi (the answer: `AppEvent::Kuis`).
     KuisNext,
+    /// The Text page's Extract text (`services::textgrab`, once the island has closed).
+    ExtractText,
+    /// The Text page: copy the `n`th text of `Store::text_history` again.
+    CopyText(usize),
     /// Get one of Prayer times' online city files ("ed", "near/55_-5"; the
     /// answer: `AppEvent::Cities`).
     GetCities(String),

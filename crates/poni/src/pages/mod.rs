@@ -24,6 +24,7 @@ pub mod prayer;
 pub mod quran;
 pub mod record;
 pub mod script;
+pub mod text;
 pub mod settings;
 pub mod shelf;
 pub mod system;
@@ -72,6 +73,8 @@ pub enum PageKind {
     Kuis,
     /// The System add-on's page, while it is on ([`tabs`]).
     System,
+    /// The Text extractor add-on's page, while it is on ([`tabs`]).
+    Text,
     /// The teleprompter: a script read under the webcam.
     Script,
     /// Screen recording with Oyenza Studio Recorder, while its add-on is on
@@ -99,7 +102,7 @@ pub enum PageKind {
 impl PageKind {
     /// The tab row's order: the island's own pages, then the add-ons'
     /// pages and the "+".
-    pub const ALL: [PageKind; 18] = [
+    pub const ALL: [PageKind; 19] = [
         PageKind::Media,
         PageKind::Today,
         PageKind::Shelf,
@@ -109,6 +112,7 @@ impl PageKind {
         PageKind::Ielts,
         PageKind::Kuis,
         PageKind::System,
+        PageKind::Text,
         PageKind::Script,
         PageKind::Record,
         PageKind::Quran,
@@ -131,6 +135,7 @@ impl PageKind {
             PageKind::Tasks => "tasks",
             PageKind::Today => "today",
             PageKind::System => "system",
+            PageKind::Text => "text",
             PageKind::Script => "script",
             PageKind::Record => "record",
             PageKind::Quran => "quran",
@@ -159,6 +164,7 @@ impl PageKind {
             PageKind::Tasks => "Tasks",
             PageKind::Today => "Today",
             PageKind::System => "System",
+            PageKind::Text => "Text",
             PageKind::Script => "Script",
             PageKind::Record => "Record",
             PageKind::Quran => "Quran",
@@ -182,6 +188,7 @@ impl PageKind {
             PageKind::Tasks => Icon::ListChecks,
             PageKind::Today => Icon::Calendar,
             PageKind::System => Icon::Gauge,
+            PageKind::Text => Icon::Area,
             PageKind::Script => Icon::Script,
             PageKind::Record => Icon::Recorder,
             PageKind::Quran => Icon::Book,
@@ -262,6 +269,7 @@ fn row(st: &AppState, open: Option<PageKind>) -> Vec<PageKind> {
             PageKind::System => st.system_on(),
             PageKind::Quran => st.quran_on(),
             PageKind::Prayer => st.prayer_on(),
+            PageKind::Text => st.text_on(),
             PageKind::Script => st.script_on(),
             PageKind::Caffeine => st.caffeine_on(),
             PageKind::Downloads => st.downloader_on(),
@@ -292,6 +300,7 @@ pub fn content_height(p: PageKind, st: &AppState) -> f32 {
         PageKind::Tasks => tasks::height(st),
         PageKind::Today => today::height(st),
         PageKind::System => system::height(st),
+        PageKind::Text => text::height(st),
         PageKind::Script => script::height(st),
         PageKind::Record => record::height(st),
         PageKind::Quran => quran::height(st),
@@ -432,6 +441,7 @@ pub(crate) fn draw_page(ui: &mut Ui, st: &mut AppState, area: Rect, page: PageKi
         PageKind::Tasks => tasks::draw(ui, st, area),
         PageKind::Today => today::draw(ui, st, area),
         PageKind::System => system::draw(ui, st, area),
+        PageKind::Text => text::draw(ui, st, area),
         PageKind::Script => script::draw(ui, st, area),
         PageKind::Record => record::draw(ui, st, area),
         PageKind::Quran => quran::draw(ui, st, area),

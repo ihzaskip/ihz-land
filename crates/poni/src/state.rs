@@ -544,6 +544,9 @@ pub struct RecView {
     pub opening_until: f64,
     /// Why the last start failed, shown on the Record page until a time.
     pub error: Option<(String, f64)>,
+    /// The built-in screen recorder's recording (`services::screenrec`), not
+    /// the recorder app's: a click on its pill stops it.
+    pub builtin: bool,
 }
 
 /// The AI tab's readings, kept in memory only (its choices are
@@ -820,6 +823,7 @@ impl AppState {
             PageKind::Notifications => !st.notifications_on(),
             PageKind::Ielts => !st.ielts_on(),
             PageKind::Kuis => !st.kuis_on(),
+            PageKind::Text => !st.text_on(),
             PageKind::Ai => !st.ai_usage_on(),
             PageKind::Quran => !st.quran_on(),
             p => st.tab_hidden(p),
@@ -908,6 +912,17 @@ impl AppState {
     /// card).
     pub fn ielts_on(&self) -> bool {
         self.addon(poni_core::addons::IELTS.id) == AddonStatus::Ready
+    }
+
+    /// Text extractor is on: the Text tab shows. Windows only (OCR is Windows').
+    pub fn text_on(&self) -> bool {
+        cfg!(windows) && self.addon(poni_core::addons::TEXT_EXTRACTOR.id) == AddonStatus::Ready
+    }
+
+    /// A recording shows on the island (its pill, Stop one click away): the
+    /// recorder app's while its add-on is on, the built-in recorder's always.
+    pub fn rec_shown(&self) -> bool {
+        self.rec_live() && (self.rec.builtin || self.record_on())
     }
 
     /// Kuis is on: its tab shows. Windows only (the Mac app draws no SVG).
