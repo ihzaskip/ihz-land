@@ -71,6 +71,10 @@ const DROP_PEEK_EVERY_S: f64 = 30.0;
 const HOTKEY_PEEK: i32 = 1;
 /// Alt+Shift+S pauses and resumes the Script page's reading from any app.
 const HOTKEY_SCRIPT: i32 = 2;
+/// Alt+Shift+T: Text extractor (`services::textgrab`), from any app.
+const HOTKEY_TEXT: i32 = 3;
+/// Alt+Shift+R: start or stop the built-in screen recorder (`services::screenrec`).
+const HOTKEY_REC: i32 = 4;
 /// Record pressed: how long the Record page says "Opening the recorder"
 /// without word from it (a cold start of the recorder takes a few seconds).
 const REC_OPENING_S: f64 = 15.0;
@@ -344,7 +348,13 @@ fn run_deferred(d: Deferred) {
             let Some((helper, items)) = with_app(|app| {
                 // Right-clicked on the open island (the tray's menu leaves it as it is).
                 app.menu_open = app.expanded && app.hovering;
-                (app.helper, tray::menu_items(&app.st.settings, app.st.pinned, &app.st.oyenza.link, crate::services::recorder::installed(), crate::updates::menu_line(&app.st, app.updater.is_some())))
+                let mut items = tray::menu_items(&app.st.settings, app.st.pinned, &app.st.oyenza.link, crate::services::recorder::installed(), crate::updates::menu_line(&app.st, app.updater.is_some()));
+                let rec = if app.screen_rec.is_some() { "Stop recording\tAlt+Shift+R" } else { "Record screen\tAlt+Shift+R" };
+                let mic = app.st.settings.record.microphone;
+                let top = [("Extract text\tAlt+Shift+T", tray::MenuCmd::ExtractText, false), (rec, tray::MenuCmd::ToggleScreenRec, false), ("Record microphone", tray::MenuCmd::ToggleRecordMic, mic)];
+                let top = top.map(|(label, cmd, checked)| tray::MenuItem::Item { label: label.into(), cmd, checked });
+                items.splice(0..0, top.into_iter().chain([tray::MenuItem::Separator]));
+                (app.helper, items)
             }) else {
                 return;
             };
@@ -478,6 +488,8 @@ pub struct App {
     script_excluded: bool,
     /// A recording has asked for the island to stay out of screen capture.
     rec_excluded: bool,
+    /// The built-in screen recorder's recording, while one runs.
+    screen_rec: Option<services::screenrec::Recording>,
     /// A reading held the island open at the last tick.
     script_held: bool,
     /// The Script page was on screen at the last tick.
@@ -739,6 +751,7 @@ impl App {
             grab: None,
             updater: None,
             notify: None,
+            screen_rec: None,
         })
     }
 
@@ -768,6 +781,12 @@ impl App {
             }
             self.try_add_tray();
             services::power::register_session(self.helper);
+            // Text extractor and the screen recorder: a registered key costs nothing at rest.
+            for (id, key, name) in [(HOTKEY_TEXT, b'T', "Alt+Shift+T"), (HOTKEY_REC, b'R', "Alt+Shift+R")] {
+                if let Err(e) = unsafe { RegisterHotKey(self.helper, id, MOD_ALT | MOD_SHIFT | MOD_NOREPEAT, u32::from(key)) } {
+                    pwarn!("{name} is taken ({e})");
+                }
+            }
             if !crate::autostart::packaged() {
                 self.updater = Some(crate::updates::Updater::start(paths::data_dir().join("update.json"), &mut self.st, crate::updates::unix_now()));
                 self.schedule_update();
@@ -796,6 +815,14 @@ impl App {
         self.frames = None;
         self.set_peek_hotkey(false);
         self.set_script_hotkey(false);
+        unsafe {
+            let _ = UnregisterHotKey(self.helper, HOTKEY_TEXT);
+            let _ = UnregisterHotKey(self.helper, HOTKEY_REC);
+        }
+        // A recording still running is finished, not lost.
+        if let Some(r) = self.screen_rec.take() {
+            let _ = r.stop();
+        }
         self.glass.stop(self.hwnd, &mut self.gfx);
         if let Some(p) = self.phone.take() {
             p.stop();
@@ -1477,6 +1504,14 @@ impl App {
             WM_HOTKEY if wp.0 == HOTKEY_PEEK as usize => {
                 self.toggle_readout();
                 self.request_frame();
+                Some(LRESULT(0))
+            }
+            WM_HOTKEY if wp.0 == HOTKEY_TEXT as usize => {
+                services::textgrab::start(self.sink.clone());
+                Some(LRESULT(0))
+            }
+            WM_HOTKEY if wp.0 == HOTKEY_REC as usize => {
+                self.toggle_screen_rec();
                 Some(LRESULT(0))
             }
             WM_HOTKEY if wp.0 == HOTKEY_SCRIPT as usize => {
@@ -2172,6 +2207,10 @@ impl App {
             TogglePinned => self.st.pinned = !self.st.pinned,
             CentreIsland => s.island_x = None,
             RecordScreen => crate::services::recorder::record_screen(self.hwnd),
+            ExtractText => services::textgrab::start(self.sink.clone()),
+            ToggleScreenRec => self.toggle_screen_rec(),
+            // The next recording's; one under way keeps what it started with.
+            ToggleRecordMic => s.record.microphone = !s.record.microphone,
             ShowSettings => self.show_settings(&mut Vec::new()),
             ToggleAutostart => {
                 let on = crate::autostart::is_enabled();
@@ -2537,6 +2576,15 @@ impl App {
                 let fx = self.st.ielts.mic_failed(issue);
                 self.ielts_do(fx);
             }
+            AppEvent::TextGrab(got) => match got {
+                Ok(text) if !text.trim().is_empty() => {
+                    services::clipboard::set_text(self.hwnd, &text);
+                    let first = text.lines().next().unwrap_or_default().to_string();
+                    self.st.notify(Icon::Clipboard, palette::BLUE, "Text copied", first, 4.0, None);
+                }
+                Ok(_) => self.st.notify(Icon::Clipboard, palette::ORANGE, "No text found", "Draw the box around some text", 4.0, None),
+                Err(why) => self.st.notify(Icon::Clipboard, palette::ORANGE, "Couldn't read text", why, 6.0, None),
+            },
             AppEvent::Log(s) => pinfo!("{s}"),
         }
         if let Some(before) = media_before {
@@ -2973,6 +3021,42 @@ impl App {
             self.st.rec = crate::state::RecView::default();
             self.request_frame();
         }
+    }
+
+    /// The built-in screen recorder: start on the island's screen, or stop
+    /// and show the video in Explorer.
+    fn toggle_screen_rec(&mut self) {
+        self.st.now = clock::mono();
+        if let Some(r) = self.screen_rec.take() {
+            match r.stop() {
+                Ok(path) => {
+                    let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+                    self.st.notify(Icon::Record, palette::BLUE, "Recording saved", name, 5.0, None);
+                    shell::reveal(&path.to_string_lossy());
+                }
+                Err(e) => {
+                    pwarn!("screen recorder: {e}");
+                    self.st.notify(Icon::Record, palette::ORANGE, "Nothing was recorded", "The screen didn't change", 5.0, None);
+                }
+            }
+        } else {
+            let t = clock::local_now();
+            let dir = paths::videos_dir();
+            let _ = std::fs::create_dir_all(&dir);
+            let name = format!("Screen recording {}-{:02}-{:02} {:02}.{:02}.{:02}.mp4", t.year, t.month, t.day, t.hour, t.minute, t.second);
+            match services::screenrec::start(self.hwnd, dir.join(name), self.st.settings.record.microphone) {
+                Ok(r) => {
+                    pinfo!("screen recorder: recording to {}", r.path().display());
+                    self.screen_rec = Some(r);
+                    self.st.notify(Icon::Record, palette::RED, "Recording", "Alt+Shift+R stops", 3.0, None);
+                }
+                Err(e) => {
+                    pwarn!("screen recorder: couldn't start ({e})");
+                    self.st.notify(Icon::Record, palette::ORANGE, "Couldn't record the screen", "Details in poni.log", 6.0, None);
+                }
+            }
+        }
+        self.request_frame();
     }
 
     /// Out of the recorder's video (and every other capture) while a recording
@@ -3557,7 +3641,7 @@ impl App {
             && matches!(self.gfx.renderer(), crate::gfx::Renderer::Gpu { .. });
         self.glass.sync(copy_on, self.hwnd, &self.sink, self.monitor.handle, window_px, &mut self.gfx);
         self.sync_script_capture(self.st.page == PageKind::Script && (self.expanded || !self.island.settled()));
-        self.sync_recording_capture(self.st.rec_live() && self.st.record_on());
+        self.sync_recording_capture((self.st.rec_live() && self.st.record_on()) || self.screen_rec.is_some());
         let mut glass_moving = false;
         let glass = if glass_theme && !hidden_idle {
             let small = !matches!(mode, Mode::Expanded(_));

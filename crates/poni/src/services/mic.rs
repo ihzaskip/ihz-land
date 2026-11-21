@@ -169,6 +169,10 @@ pub(crate) struct Device {
     pub(crate) capture: IAudioCaptureClient,
     pub(crate) downmix: Downmix,
     pub(crate) block: usize,
+    /// The mix format, for readers that keep its rate (the screen recorder).
+    pub(crate) rate: u32,
+    pub(crate) channels: u16,
+    pub(crate) format: SampleFormat,
 }
 
 /// The default recording device, opened in shared mode in its own format.
@@ -200,7 +204,7 @@ pub(crate) fn open_endpoint(flow: EDataFlow, what: &str) -> Result<Device, MicEr
             return Err(MicError::Failed(format!("recording frames of {block} bytes for {channels} channels")));
         }
         crate::pinfo!("{what} at {rate} Hz, {channels} channel(s), {format:?}");
-        Ok(Device { client, capture, downmix: Downmix::new(rate, channels, format), block })
+        Ok(Device { client, capture, downmix: Downmix::new(rate, channels, format), block, rate, channels, format })
     }
 }
 

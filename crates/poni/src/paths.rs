@@ -76,6 +76,11 @@ pub fn media_downloads_dir() -> PathBuf {
     downloads_dir().unwrap_or_else(|| env_dir("USERPROFILE").join("Downloads"))
 }
 
+/// Where the screen recorder saves: Videos (`~/Videos` if Windows won't say).
+pub fn videos_dir() -> PathBuf {
+    known_folder(&windows::Win32::UI::Shell::FOLDERID_Videos).unwrap_or_else(|| env_dir("USERPROFILE").join("Videos"))
+}
+
 fn downloads_dir() -> Option<PathBuf> {
     known_folder(&windows::Win32::UI::Shell::FOLDERID_Downloads)
 }

@@ -31,6 +31,7 @@ pub mod psu;
 pub mod quran;
 pub mod recorder;
 pub mod romanize;
+pub mod screenrec;
 #[cfg(test)]
 mod romanize_compare;
 pub mod secret;
@@ -38,6 +39,7 @@ pub mod sound;
 pub mod notifications;
 pub mod sysmon;
 pub mod sysstats;
+pub mod textgrab;
 pub mod update;
 pub mod usage;
 pub mod voice;

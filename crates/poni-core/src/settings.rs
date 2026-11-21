@@ -168,7 +168,8 @@ impl Default for UsageSettings {
     }
 }
 
-/// What the Record page records next: its last picks.
+/// What the Record page records next: its last picks. `microphone` is the
+/// built-in screen recorder's choice too (its menu's Record microphone).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct RecordSettings {

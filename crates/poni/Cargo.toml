@@ -48,6 +48,16 @@ features = [
     "Globalization",
     "Media",
     "Media_Control",
+    # Text extractor (services/textgrab.rs): Windows' own OCR.
+    "Media_Ocr",
+    "Graphics_Imaging",
+    # Screen recorder (services/screenrec.rs): Windows.Graphics.Capture into Media Foundation.
+    "Graphics_Capture",
+    "Graphics_DirectX",
+    "Graphics_DirectX_Direct3D11",
+    "Win32_Media_MediaFoundation",
+    "Win32_System_WinRT_Direct3D11",
+    "Win32_System_WinRT_Graphics_Capture",
     "Storage",
     "Storage_Streams",
     "Web_Http",

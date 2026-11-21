@@ -181,4 +181,6 @@ pub enum AppEvent {
     VoiceEnded,
     /// The microphone stopped mid-answer (`services::mic`): why, for the log.
     MicFailed(String),
+    /// Text extractor (`services::textgrab`): what OCR read in the box, or why it couldn't.
+    TextGrab(Result<String, String>),
 }

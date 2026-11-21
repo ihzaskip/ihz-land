@@ -1781,6 +1781,7 @@ impl App {
             AppEvent::Usage(ev) => self.on_usage(ev),
             AppEvent::AdzanEnded => self.adzan_ended(),
             AppEvent::Log(s) => pinfo!("{s}"),
+            AppEvent::TextGrab(_) => {}
             AppEvent::Bluetooth { name, connected, battery, audio } => {
                 if self.st.settings.hud_bluetooth {
                     self.st.show_hud(HudKind::Bluetooth { name, connected, battery, audio }, 2.6);

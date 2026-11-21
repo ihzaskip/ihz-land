@@ -855,7 +855,7 @@ impl SampleFormat {
         }
     }
 
-    fn read(self, b: &[u8]) -> f32 {
+    pub fn read(self, b: &[u8]) -> f32 {
         match self {
             SampleFormat::F32 => f32::from_le_bytes([b[0], b[1], b[2], b[3]]),
             SampleFormat::I16 => i16::from_le_bytes([b[0], b[1]]) as f32 / 32768.0,

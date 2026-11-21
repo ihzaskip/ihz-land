@@ -86,6 +86,12 @@ pub enum MenuCmd {
     OyenzaDisconnect,
     OyenzaOpen,
     RecordScreen,
+    /// Text extractor (`services::textgrab`): read text off the screen.
+    ExtractText,
+    /// The built-in screen recorder (`services::screenrec`): start or stop.
+    ToggleScreenRec,
+    /// Whether the built-in screen recorder takes the microphone.
+    ToggleRecordMic,
     /// "Update to Oyenza Studio 0.2.5…" (`crate::updates`).
     Update,
     /// "Check for updates…": read the update file now (`crate::updates`).
