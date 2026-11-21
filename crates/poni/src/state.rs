@@ -843,7 +843,17 @@ impl AppState {
     /// and the island answers the recorder, which then shows no bar or
     /// controls of its own (`WM_COPYDATA` on Windows, a message port on the Mac).
     pub fn record_on(&self) -> bool {
-        self.settings.recorder_on(self.recorder_ready())
+        if self.rec_builtin() {
+            self.settings.addon_on(poni_core::addons::SCREEN_RECORDER.id)
+        } else {
+            self.settings.recorder_on(self.recorder_ready())
+        }
+    }
+
+    /// The Record page and Screen recorder's switch drive the island's own
+    /// recorder (`services::screenrec`): Windows, without ihz.land Recorder.
+    pub fn rec_builtin(&self) -> bool {
+        cfg!(windows) && !self.recorder_ready()
     }
 
     /// The recorder is installed and has written to the island before

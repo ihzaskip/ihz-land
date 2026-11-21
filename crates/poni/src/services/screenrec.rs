@@ -98,16 +98,16 @@ fn now_hns() -> i64 {
     (c as i128 * SECOND as i128 / f.max(1) as i128) as i64
 }
 
-/// Start recording the screen `island` is on, with the PC's sound (and the
-/// microphone's with `mic`), into `path` (an .mp4).
-pub fn start(island: HWND, path: PathBuf, mic: bool) -> windows::core::Result<Recording> {
+/// Start recording the screen `island` is on into `path` (an .mp4), with
+/// the microphone (`mic`) and the PC's own sound (`sound`); neither: video only.
+pub fn start(island: HWND, path: PathBuf, mic: bool, sound: bool) -> windows::core::Result<Recording> {
     unsafe { MFStartup(MF_VERSION, MFSTARTUP_LITE)? };
     // The sound devices first: whether any opened decides the file's streams.
     let (ready_tx, ready_rx) = mpsc::channel();
     let (go_tx, go_rx) = mpsc::channel::<(Shared, i64)>();
     let stop = Arc::new(AtomicBool::new(false));
     let stop2 = stop.clone();
-    let thread = std::thread::Builder::new().name("poni-screenrec-audio".into()).spawn(move || audio_thread(ready_tx, go_rx, &stop2, mic)).ok();
+    let thread = std::thread::Builder::new().name("poni-screenrec-audio".into()).spawn(move || audio_thread(ready_tx, go_rx, &stop2, mic, sound)).ok();
     let sound = thread.is_some() && ready_rx.recv_timeout(Duration::from_secs(5)).unwrap_or(false);
     match unsafe { begin(island, path, sound) } {
         Ok((mut rec, origin)) => {
@@ -334,11 +334,11 @@ struct Source {
 
 /// `poni-screenrec-audio`: open the devices, say whether any opened, then
 /// (once the file is ready) mix until told to stop.
-fn audio_thread(ready: mpsc::Sender<bool>, go: mpsc::Receiver<(Shared, i64)>, stop: &AtomicBool, with_mic: bool) {
+fn audio_thread(ready: mpsc::Sender<bool>, go: mpsc::Receiver<(Shared, i64)>, stop: &AtomicBool, with_mic: bool, with_sound: bool) {
     let com = unsafe { CoInitializeEx(None, COINIT_MULTITHREADED) };
     let mut sources: Vec<Source> = [(eRender, "screen recorder: system sound"), (eCapture, "screen recorder: microphone")]
         .into_iter()
-        .filter(|&(flow, _)| with_mic || flow != eCapture)
+        .filter(|&(flow, _)| if flow == eCapture { with_mic } else { with_sound })
         .filter_map(|(flow, what)| match mic::open_endpoint(flow, what) {
             Ok(dev) => Some(Source { resample: Resample::new(&dev), dev, what, fifo: VecDeque::new(), start: 0 }),
             Err(e) => {
@@ -521,7 +521,7 @@ mod tests {
     #[ignore]
     fn records_an_mp4() {
         let path = std::env::temp_dir().join("poni-screenrec-test.mp4");
-        let r = super::start(windows::Win32::Foundation::HWND::default(), path.clone(), true).expect("start");
+        let r = super::start(windows::Win32::Foundation::HWND::default(), path.clone(), true, true).expect("start");
         let sound = r.audio.is_some();
         std::thread::sleep(std::time::Duration::from_secs(2));
         let path = r.stop().expect("stop");

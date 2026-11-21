@@ -181,7 +181,7 @@ pub struct RecordSettings {
 
 impl Default for RecordSettings {
     fn default() -> Self {
-        Self { target: crate::recorder::Target::Screen, camera: false, microphone: true, system_audio: false }
+        Self { target: crate::recorder::Target::Screen, camera: false, microphone: true, system_audio: true }
     }
 }
 
@@ -693,10 +693,11 @@ mod tests {
 
     #[test]
     fn record_choices_default_and_round_trip() {
-        // Files from before the Record page get its defaults: this screen, the microphone.
+        // Files from before the Record page get its defaults: this screen, the
+        // microphone and the PC's sound (the built-in recorder's video has both).
         let s: Settings = serde_json::from_str("{}").unwrap();
         assert_eq!(s.record, RecordSettings::default());
-        assert_eq!(s.record.inputs(), crate::recorder::Inputs { camera: false, microphone: true, system_audio: false });
+        assert_eq!(s.record.inputs(), crate::recorder::Inputs { camera: false, microphone: true, system_audio: true });
         let mut s = Settings::default();
         s.record = RecordSettings { target: crate::recorder::Target::Area, camera: true, microphone: false, system_audio: true };
         let j = serde_json::to_string(&s).unwrap();

@@ -66,7 +66,7 @@ fn rows(st: &AppState) -> Vec<&'static Addon> {
     OFFERED
         .iter()
         .copied()
-        .filter(|a| a.id != addons::SCREEN_RECORDER.id || st.recorder_ready())
+        .filter(|a| a.id != addons::SCREEN_RECORDER.id || st.recorder_ready() || st.rec_builtin())
         .filter(|a| a.id != addons::DOWNLOADER.id || st.downloader_offered)
         // No player for it in the Mac app.
         .filter(|a| a.id != addons::QURAN.id || !MAC)
@@ -176,7 +176,7 @@ fn addon_row(ui: &mut Ui, st: &AppState, r: Rect, i: usize, a: &Addon, card: Opt
     let w = (text_right - x).max(0.0);
     let line_color = if status == Status::Failed { palette::ORANGE } else { palette::TEXT_DIM };
     // Screen recorder came on with the recorder, not by a click here: say so.
-    let line = if a.id == addons::SCREEN_RECORDER.id && status == Status::Ready {
+    let line = if a.id == addons::SCREEN_RECORDER.id && status == Status::Ready && !st.rec_builtin() {
         "On, since ihz.land Recorder is installed".to_string()
     } else {
         status.line(a, MAC)
@@ -215,11 +215,12 @@ mod tests {
     fn every_row_offered_fits_the_page() {
         let mut st = AppState::new(Settings::default(), Store::default());
         let without = rows(&st).len();
-        // The recorder installed, and the Downloader offered: both join.
+        // The recorder installed (Windows lists Screen recorder anyway, for
+        // its own recorder), and the Downloader offered: they join.
         st.recorder = true;
         st.store.recorder_island = true;
         st.downloader_offered = true;
-        assert_eq!(rows(&st).len(), without + 2);
+        assert_eq!(rows(&st).len(), without + if cfg!(windows) { 1 } else { 2 });
         assert!(height(&st) <= MAX_H, "the window never grows for this page");
         let h = row_h(rows(&st).len());
         assert!(h < TWO_LINES, "that many rows are a line each");

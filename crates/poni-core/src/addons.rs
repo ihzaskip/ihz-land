@@ -193,16 +193,16 @@ pub const CAFFEINE: Addon = Addon {
     files: &[],
 };
 
-/// Screen recorder: the Record page and the recording pill, the face of
-/// Oyenza Studio Recorder (its own install, about 120 MB). Its code is in the
-/// island, so there is nothing to download. It shows on the Add-ons page once
-/// the recorder is installed, and is on from then until switched off
-/// (`Settings::recorder_on`). Off, there is no Record tab, and the recorder
-/// shows its own bar and controls.
+/// Screen recorder: the Record page and the recording pill. On Windows the
+/// island records by itself (`services::screenrec`): an MP4 in Videos, off
+/// until switched on. Where ihz.land Recorder (the separate app, about
+/// 120 MB) is installed, the page is its face instead, on from the install
+/// until switched off (`Settings::recorder_on`); off, that app shows its own
+/// bar and controls. Its code is in the island: nothing to download.
 pub const SCREEN_RECORDER: Addon = Addon {
     id: "recorder",
     title: "Screen recorder",
-    blurb: "Record your screen from the island, with ihz.land Recorder.",
+    blurb: "Record your screen, with its sound, to an MP4 in Videos.",
     mac_blurb: None,
     tag: "",
     files: &[],

@@ -2651,7 +2651,7 @@ impl App {
             }
             self.check_recorder_alive();
             // A recording under way opens on its page: Pause and Stop are there.
-            if self.st.rec_live() && self.st.record_on() && !self.st.rec.builtin {
+            if self.st.rec_live() && self.st.record_on() {
                 self.st.page = PageKind::Record;
             } else if self.mode == Mode::Activity(activities::Activity::Quran) {
                 self.st.page = PageKind::Quran;
@@ -3060,7 +3060,8 @@ impl App {
             let dir = paths::videos_dir();
             let _ = std::fs::create_dir_all(&dir);
             let name = format!("Screen recording {}-{:02}-{:02} {:02}.{:02}.{:02}.mp4", t.year, t.month, t.day, t.hour, t.minute, t.second);
-            match services::screenrec::start(self.hwnd, dir.join(name), self.st.settings.record.microphone) {
+            let rec = self.st.settings.record;
+            match services::screenrec::start(self.hwnd, dir.join(name), rec.microphone, rec.system_audio) {
                 Ok(r) => {
                     pinfo!("screen recorder: recording to {}", r.path().display());
                     self.screen_rec = Some(r);
@@ -4523,6 +4524,16 @@ impl App {
                 Command::FocusText => self.focus_text(),
                 Command::BlurText => self.blur_text(),
                 Command::RecordScreen => services::recorder::record_screen(self.hwnd),
+                Command::Record if self.st.rec_builtin() => {
+                    if self.screen_rec.is_none() {
+                        self.toggle_screen_rec();
+                    }
+                }
+                Command::RecordStop if self.st.rec.builtin => {
+                    if self.screen_rec.is_some() {
+                        self.toggle_screen_rec();
+                    }
+                }
                 Command::Record => {
                     let rec = self.st.settings.record;
                     services::recorder::record(self.hwnd, rec.target, rec.inputs());

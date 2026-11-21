@@ -67,8 +67,20 @@ pub fn draw(ui: &mut Ui, st: &mut AppState, area: Rect) {
 
 fn draw_choices(ui: &mut Ui, st: &mut AppState, area: Rect) {
     let y = area.y + ROW_Y;
-    let targets_right = draw_targets(ui, st, area.x, y);
-    draw_inputs(ui, st, targets_right + 16.0, area.right(), y);
+    let builtin = st.rec_builtin();
+    // ponytail: the built-in recorder records the island's screen only; a
+    // window or an area (the text extractor's box) when someone asks.
+    let targets_right = if builtin {
+        let what = "The screen the island is on";
+        ui.c.icon(Icon::Screen, Rect::new(area.x, y + (ROW_H - CELL_ICON) / 2.0, CELL_ICON, CELL_ICON), palette::TEXT);
+        let x = area.x + CELL_ICON + ICON_GAP;
+        let st_ = TextStyle::body().weight(Weight::Semibold);
+        ui.c.text(what, Rect::new(x, y, 240.0, ROW_H), &st_);
+        x + ui.c.measure(what, &st_, 240.0).0
+    } else {
+        draw_targets(ui, st, area.x, y)
+    };
+    draw_inputs(ui, st, targets_right + 16.0, area.right(), y, !builtin);
 
     let ay = area.y + ACTION_Y;
     let opening = st.now < st.rec.opening_until;
@@ -83,11 +95,13 @@ fn draw_choices(ui: &mut Ui, st: &mut AppState, area: Rect) {
     let (status, color) = match &st.rec.error {
         Some((text, until)) if st.now < *until => (text.clone(), palette::ORANGE),
         _ if opening => ("Opening the recorder\u{2026}".to_string(), palette::TEXT_DIM),
+        _ if builtin => ("Or press Alt+Shift+R in any app.".to_string(), palette::TEXT_DIM),
         _ => (target_hint(st.settings.record.target).to_string(), palette::TEXT_DIM),
     };
     let sx = r.right() + 14.0;
     ui.c.text(&status, Rect::new(sx, ay, (area.right() - sx).max(0.0), PILL_REGULAR), &TextStyle::body().color(color));
-    foot(ui, area, "ihz.land Recorder makes the video. The island stays out of it.");
+    let note = if builtin { "Saved as an MP4 in Videos. The island stays out of the video." } else { "ihz.land Recorder makes the video. The island stays out of it." };
+    foot(ui, area, note);
 }
 
 fn target_hint(t: Target) -> &'static str {
@@ -152,18 +166,22 @@ fn draw_targets(ui: &mut Ui, st: &mut AppState, x0: f32, y: f32) -> f32 {
     track.right()
 }
 
-/// Camera, Mic and Sound, each on or off, right-aligned in `x0..x1`; icons
-/// only when the labels don't fit.
-fn draw_inputs(ui: &mut Ui, st: &mut AppState, x0: f32, x1: f32, y: f32) {
+/// Camera (`camera`: the recorder app has one), Mic and Sound, each on or
+/// off, right-aligned in `x0..x1`; icons only when the labels don't fit.
+fn draw_inputs(ui: &mut Ui, st: &mut AppState, x0: f32, x1: f32, y: f32, camera: bool) {
     let rec = st.settings.record;
-    let chips = [(Icon::Camera, "Camera", rec.camera), (Icon::Mic, "Mic", rec.microphone), (Icon::Volume, "Sound", rec.system_audio)];
+    let all = [(Icon::Camera, "Camera", rec.camera), (Icon::Mic, "Mic", rec.microphone), (Icon::Volume, "Sound", rec.system_audio)];
+    let skip = usize::from(!camera);
+    let chips = &all[skip..];
+    let gaps = CHIP_GAP * (chips.len() - 1) as f32;
     let label_st = TextStyle::body().weight(Weight::Semibold);
     let full: Vec<f32> = chips.iter().map(|(_, l, _)| (CELL_PAD + CELL_ICON + ICON_GAP + ui.c.measure(l, &label_st, 200.0).0 + CELL_PAD).ceil()).collect();
-    let labels = full.iter().sum::<f32>() + CHIP_GAP * 2.0 <= x1 - x0;
-    let widths: Vec<f32> = if labels { full } else { vec![ROW_H + 8.0; 3] };
-    let mut x = x1 - widths.iter().sum::<f32>() - CHIP_GAP * 2.0;
+    let labels = full.iter().sum::<f32>() + gaps <= x1 - x0;
+    let widths: Vec<f32> = if labels { full } else { vec![ROW_H + 8.0; chips.len()] };
+    let mut x = x1 - widths.iter().sum::<f32>() - gaps;
     let mut flip = None;
     for (i, ((icon, label, on), w)) in chips.iter().zip(widths).enumerate() {
+        let i = i + skip;
         let r = Rect::new(x, y, w, ROW_H);
         x += w + CHIP_GAP;
         let resp = ui.button(wid_n("record.input", i as u64), r);
@@ -242,6 +260,11 @@ fn draw_recording(ui: &mut Ui, st: &mut AppState, area: Rect) {
         disabled_pill(ui, stop_r, stop, Icon::Stop);
     } else if ui.pill(wid("record.stop"), stop_r, stop, Some(Icon::Stop), PillStyle::Primary(palette::RED)).clicked {
         st.cmd(Command::RecordStop);
+    }
+    if st.rec.builtin {
+        // ponytail: no Pause in the built-in recorder yet; Stop saves.
+        foot(ui, area, "Stop saves it to Videos. A click on the red dot on the closed island stops it too.");
+        return;
     }
     let (label, icon, cmd) = if paused { ("Resume", Icon::Play, Command::RecordResume) } else { ("Pause", Icon::Pause, Command::RecordPause) };
     let pw = ["Pause", "Resume"].iter().map(|l| ui.pill_width(l, true, false)).fold(0.0, f32::max);

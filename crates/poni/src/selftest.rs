@@ -976,6 +976,10 @@ enum Scene {
     /// The built-in screen recorder's pill on the closed island (a click on
     /// it stops the recording).
     RecordBuiltin,
+    /// The Record page driving the built-in recorder (no ihz.land Recorder):
+    /// before a recording, then while it records.
+    RecordBuiltinPage,
+    RecordBuiltinLive,
     /// The Add-ons page with the recorder installed: Screen recorder's row
     /// (a line each, the window no taller).
     AddonsRecorder,
@@ -1168,7 +1172,7 @@ const SAMPLE_SCRIPT: &str = "Hi everyone, this one takes two minutes. Today I'll
 Drop any file on the island and it waits on the Shelf. Press the phone button, scan the code, and the file is on your phone. \
 No cable, no account, nothing to install on the phone.\n\nThat's it. Thanks for watching.";
 
-const SCENES: [Scene; 116] = [
+const SCENES: [Scene; 118] = [
     Scene::IdleClock,
     Scene::IdleEyes,
     Scene::Media,
@@ -1267,6 +1271,8 @@ const SCENES: [Scene; 116] = [
     Scene::RecordActivity,
     Scene::RecordPaused,
     Scene::RecordBuiltin,
+    Scene::RecordBuiltinPage,
+    Scene::RecordBuiltinLive,
     Scene::AddonsRecorder,
     // The Downloader: the Downloads page with a download running, one
     // waiting, one done and one failed, then empty; the Add-ons page with
@@ -1415,6 +1421,8 @@ impl Scene {
             Scene::RecordActivity => "record-activity".into(),
             Scene::RecordPaused => "record-paused-activity".into(),
             Scene::RecordBuiltin => "record-builtin-activity".into(),
+            Scene::RecordBuiltinPage => "page-record-builtin".into(),
+            Scene::RecordBuiltinLive => "page-record-builtin-live".into(),
             Scene::AddonsRecorder => "page-addons-recorder".into(),
             Scene::DownloadsEmpty => "page-downloads-empty".into(),
             Scene::AddonsDownloader => "page-addons-downloader".into(),
@@ -1476,7 +1484,7 @@ impl Scene {
             Scene::JaOffer | Scene::JaGetting | Scene::LyricPicker => Some(PageKind::Media),
             Scene::PrayerPicker | Scene::PrayerPickerWorld | Scene::PrayerWorld | Scene::PrayerMuhammadiyah | Scene::PrayerPickerFollow => Some(PageKind::Prayer),
             Scene::ScriptReading | Scene::ScriptRecorder => Some(PageKind::Script),
-            Scene::RecordLive => Some(PageKind::Record),
+            Scene::RecordLive | Scene::RecordBuiltinPage | Scene::RecordBuiltinLive => Some(PageKind::Record),
             Scene::AddonsRecorder | Scene::AddonsDownloader => Some(PageKind::Addons),
             Scene::DownloadsEmpty => Some(PageKind::Downloads),
             Scene::NotifyAsk | Scene::NotifyNoPackage => Some(PageKind::Notifications),
@@ -1526,7 +1534,7 @@ impl Scene {
             Scene::RecordLive => (Phase::Recording, 42_000),
             Scene::RecordActivity => (Phase::Recording, 754_000),
             Scene::RecordPaused => (Phase::Paused, 754_000),
-            Scene::RecordBuiltin => {
+            Scene::RecordBuiltin | Scene::RecordBuiltinLive => {
                 return crate::state::RecView { phase: Some(Phase::Recording), elapsed_ms: 94_000, at: now + 3600.0, builtin: true, ..Default::default() };
             }
             _ => return crate::state::RecView::default(),
@@ -3367,6 +3375,14 @@ Total: Rp 1.250.000", "https://ihz.app/kuis"].map(String::from).to_vec()
         st.store.recorder_island = scene.recorder() && scene != Scene::ScriptRecorder;
         st.rec = scene.recording(now);
         st.settings.record = poni_core::settings::RecordSettings::default();
+        // The built-in recorder's scenes: Screen recorder switched on.
+        let builtin_page = matches!(scene, Scene::RecordBuiltinPage | Scene::RecordBuiltinLive);
+        if builtin_page {
+            st.settings.set_addon(poni_core::addons::SCREEN_RECORDER.id, true);
+        } else {
+            // Untouched, as the recorder app's scenes expect (on with its install).
+            st.settings.addons.remove(poni_core::addons::SCREEN_RECORDER.id);
+        }
         st.system = fake_system(scene);
         st.settings.game_stats = scene.game();
         st.game = fake_game(scene, &mut st.system);
